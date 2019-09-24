@@ -5,7 +5,8 @@ import os
 from segtester import logger
 import csv
 from segtester.types import Scene, Dataset
-
+from segtester.util.sensreader import SensorData
+from datetime import datetime
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -24,6 +25,46 @@ class ScannetScene(Scene):
         self.aggregation_map = aggregation_map
         self.projected_instance_archive = projected_instance_archive
         self.projected_label_file = projected_label_file
+        self._sens_data = None
+
+        # For generating mock timestamps as it appears that the timestamps in the sens are missing
+        self.start_time = datetime.timestamp(datetime.now())
+        self.time_increments = 1 / 60.0
+
+    def get_sens_data(self):
+        if self._sens_data is None:
+            self._sens_data = SensorData(self.sens_path)
+        return self._sens_data
+
+    def get_mock_timestamp(self, iteration_number):
+        return self.start_time + iteration_number*self.time_increments
+
+    def get_rgb_depth_image_it(self):
+        sens_data = self.get_sens_data()
+        for i, image in enumerate(sens_data.get_image_generator()):
+            yield image.get_color_image(), image.get_depth_image(), self.get_mock_timestamp(i), i
+
+    def get_intrinsic_rgb(self):
+        return self.get_sens_data().intrinsic_color
+
+    def get_intrinsic_depth(self):
+        return self.get_sens_data().intrinsic_depth
+
+    def get_extrinsic_rgb(self):
+        return self.get_sens_data().extrinsic_color
+
+    def get_extrinsic_depth(self):
+        return self.get_sens_data().extrinsic_depth
+
+    def get_num_frames(self):
+        sens_data = self.get_sens_data()
+        return sens_data.num_frames
+
+    def get_rgb_size(self):
+        return self.get_sens_data().color_height, self.get_sens_data().color_width
+
+    def get_depth_size(self):
+        return self.get_sens_data().depth_height, self.get_sens_data().depth_width
 
     def get_pcd(self):
         return o3d.io.read_point_cloud(self.mesh_path)
