@@ -18,6 +18,23 @@ class ExecuteSemanticFusionConfig(BCNF.ConfigParser):
         self.save_path = BCNF.OptionalMember(default_ret="{dataset_id}/{scene_id}/{alg_name}/")
         self.alg_name = BCNF.OptionalMember(default_ret="SemanticFusion")
 
+        # Elastic fusion config
+        self.timeDelta = BCNF.OptionalMember(default_ret=200)
+        self.countThresh = BCNF.OptionalMember(default_ret=35000)
+        self.errThresh = BCNF.OptionalMember(default_ret=5e-05)
+        self.covThresh = BCNF.OptionalMember(default_ret=1e-05)
+        self.closeLoops = BCNF.OptionalMember(default_ret=True)
+        self.iclnuim = BCNF.OptionalMember(default_ret=False)
+        self.reloc = BCNF.OptionalMember(default_ret=False)
+        self.photoThresh = BCNF.OptionalMember(default_ret=115)
+        self.confidence = BCNF.OptionalMember(default_ret=10)
+        self.depthCut = BCNF.OptionalMember(default_ret=8)
+        self.icpThresh = BCNF.OptionalMember(default_ret=10)
+        self.fastOdom = BCNF.OptionalMember(default_ret=False)
+        self.fernThresh = BCNF.OptionalMember(default_ret=0.3095)
+        self.so3 = BCNF.OptionalMember(default_ret=True)
+        self.frameToFrameRGB = BCNF.OptionalMember(default_ret=False)
+
     def __call__(self, base_result_path, dataset_conf, *args, **kwargs):
         from segtester.algs.semanticfusion.semanticfusion import ExecuteSemanticFusion
         ExecuteSemanticFusion(self)(base_result_path=base_result_path, dataset_conf=dataset_conf, *args, **kwargs)
