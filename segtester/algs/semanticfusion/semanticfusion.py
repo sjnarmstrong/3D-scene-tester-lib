@@ -32,9 +32,16 @@ def load_colour_scheme(filename):
     return retcolormap
 
 
-def get_map(class_colour_lookup):
+def get_map(class_colour_lookup, save_path, conf):
     emap = ElasticFusionInterface()
-    assert emap.Init(class_colour_lookup), "Could not init emap"
+
+    assert emap.Init(class_colour_lookup, conf.timeDelta, conf.countThresh, conf.errThresh, conf.covThresh,
+                     conf.closeLoops, conf.iclnuim, conf.reloc, conf.photoThresh, conf.confidence, conf.depthCut,
+                     conf.icpThresh, conf.fastOdom, conf.fernThresh, conf.so3, conf.frameToFrameRGB, save_path), \
+        "Could not init emap"
+    # assert emap.Init(class_colour_lookup, 200, 35000, 5e-05, 1e-05, True, True, False, 115.0, 10.0, 8.0, 10.0,
+    #                  False, 0.3095, True, False, save_path), "Could not init emap"
+    # assert emap.Init(class_colour_lookup, 200, 35000, 5e-05, 1e-05, True, True), "Could not init emap"
     return emap
 
 
@@ -61,12 +68,12 @@ class ExecuteSemanticFusion:
                 Intrinsics.getInstance(intrinsic_res[0, 0], intrinsic_res[1, 1],
                                        intrinsic_res[0, 2], intrinsic_res[0, 1])
 
-                emap = get_map(self.class_colour_lookup)
-
                 save_path = self.conf.format_string_with_meta(f"{base_result_path}/{self.conf.save_path}", **{
                     "dataset_id": dataset_conf.id, "scene_id": scene.id,
                     "alg_name": self.conf.alg_name
                 })
+
+                emap = get_map(self.class_colour_lookup, f"{save_path}/elastic_generated", self.conf)
                 frame_save_path = f"{save_path}/frames"
                 os.makedirs(frame_save_path, exist_ok=True)
                 for rgb, depth, timestamp, frame_num in \
@@ -97,13 +104,12 @@ class ExecuteSemanticFusion:
                     self.gui.displayImg("raw", emap)
 
                     self.gui.postCall()
-                    if frame_num == 100:
-                        break
 
                 xyz, rgb, pr = self.semantic_fusion.GetGlobalMap(emap)
                 pred_pcd = o3d.geometry.PointCloud()
-                pred_pcd.points = o3d.utility.Vector3dVector(xyz)
+                pred_pcd.points = o3d.utility.Vector3dVector(xyz[:, :3])
                 pred_pcd.colors = o3d.utility.Vector3dVector(rgb/255)
+                pred_pcd.normals = o3d.utility.Vector3dVector(xyz[:, 3:])
                 o3d.io.write_point_cloud(f"{save_path}/pcd.ply", pred_pcd)
                 np.savez_compressed(f"{save_path}/probs", likelihoods=pr)
 

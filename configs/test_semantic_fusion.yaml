@@ -10,7 +10,7 @@ tests:
     caffemodel_path: "/mnt/1C562D12562CEDE8/MODELS/semanticFusion/nyu_rgbd/inference.caffemodel"
     class_colour_lookup_path: "/mnt/1C562D12562CEDE8/COMMONDEPS/semanticfusion2/class_colour_scheme.data"
     caffe_use_cpu: true
-    cnn_skip_frames: 100
+    cnn_skip_frames: 30
   dataset:
     id: "SCANNET"
     file_map: "/mnt/1C562D12562CEDE8/DATASETS/csv_conf/scenenn_mock_hd.csv"
