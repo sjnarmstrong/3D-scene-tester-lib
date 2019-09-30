@@ -9,6 +9,7 @@ def points_to_voxel_inds(xyz, mins, voxel_size, padding):
 if __name__ == "__main__":
     from PIL import Image
     from time import sleep
+    from tqdm import tqdm
     _sdata = SensorData("/mnt/1C562D12562CEDE8/DATASETS/scannet/scenes/scans/scene0706_00/scene0706_00.sens")
     print(_sdata)
     pcd = o3d.io.read_point_cloud(
@@ -22,15 +23,12 @@ if __name__ == "__main__":
     max_pcd = np.max(pcd_np, axis=0)
     range_pcd = min_pcd - max_pcd
 
-    vox_coords_min = np.mgrid[min_pcd[0] - voxel_size * padding:max_pcd[0] + voxel_size * padding:voxel_size,
-                              min_pcd[1] - voxel_size * padding:max_pcd[1] + voxel_size * padding:voxel_size] - \
-        voxel_size/2
+    vox_coords = np.mgrid[min_pcd[0] - voxel_size * padding:max_pcd[0] + voxel_size * padding:voxel_size,
+                          min_pcd[1] - voxel_size * padding:max_pcd[1] + voxel_size * padding:voxel_size]
 
-    vox_coords_max = vox_coords_min + voxel_size
+    res = np.zeros((_sdata.num_frames, ) + vox_coords.shape[1:3], dtype=np.bool)
 
-    res = np.zeros(vox_coords_max.shape[1:3] + (_sdata.num_frames, ), dtype=np.bool)
-
-    for i, _image in enumerate(_sdata.get_image_generator()):
+    for i, _image in tqdm(enumerate(_sdata.get_image_generator()), total=_sdata.num_frames):
         if i % 1 !=0:
             continue
         color_img = _image.get_color_image()
@@ -54,4 +52,14 @@ if __name__ == "__main__":
         XYZ = _image.camera_to_world @ XYZ
 
         inds = points_to_voxel_inds(XYZ[:2], min_pcd[:2, None], voxel_size, padding)
+        inds = inds[:, np.logical_and(np.logical_and(inds[0] >= 0, inds[1] >= 0),
+                                      np.logical_and(inds[0] < res.shape[1], inds[1] < res.shape[2]))]
         res[i][inds[0], inds[1]] = True
+
+    all_indicies = []
+    for i in range(res.shape[1]):
+        row_indicies = []
+        for j in range(res.shape[2]):
+            row_indicies.append(np.where(res[:, i, j]))
+        all_indicies.append(row_indicies)
+    print(all_indicies)
