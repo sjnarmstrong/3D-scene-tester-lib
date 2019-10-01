@@ -5,11 +5,18 @@ class Execute3DMVConfig(BCNF.ConfigParser):
     def __init__(self):
         super().__init__()
         self.id = BCNF.OptionalMember()
-        self.cpu_only = BCNF.RequiredMember()
+        self.model_path = BCNF.RequiredMember()
+        self.model2d_orig_path = BCNF.RequiredMember()
+        self.cpu_only = BCNF.OptionalMember(default_ret=False)
         self.grid_dimX = BCNF.OptionalMember(default_ret=31)
         self.grid_dimY = BCNF.OptionalMember(default_ret=31)
         self.grid_dimZ = BCNF.OptionalMember(default_ret=62)
         self.num_nearest_images = BCNF.OptionalMember(default_ret=1)
+        self.model2d_type = BCNF.OptionalMember(default_ret='scannet')
+        self.depth_min = BCNF.OptionalMember(default_ret=0.4)
+        self.depth_max = BCNF.OptionalMember(default_ret=4.0)
+        self.voxel_size = BCNF.OptionalMember(default_ret=0.05)
+        self.num_classes = BCNF.OptionalMember(default_ret=42)
 
     def __call__(self, base_result_path, dataset_conf, *args, **kwargs):
         from segtester.algs.mv3d.mv3d import Execute3DMV
