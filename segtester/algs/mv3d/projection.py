@@ -1,9 +1,9 @@
-
 import numpy as np
 import torch
 from torch.autograd import Function
 
-class ProjectionHelper():
+
+class ProjectionHelper(object):
     def __init__(self, intrinsic, depth_min, depth_max, image_dims, volume_dims, voxel_size):
         self.intrinsic = intrinsic
         self.depth_min = depth_min
@@ -12,23 +12,20 @@ class ProjectionHelper():
         self.volume_dims = volume_dims
         self.voxel_size = voxel_size
 
-
     def depth_to_skeleton(self, ux, uy, depth):
         x = (ux - self.intrinsic[0][2]) / self.intrinsic[0][0]
         y = (uy - self.intrinsic[1][2]) / self.intrinsic[1][1]
         return torch.Tensor([depth*x, depth*y, depth])
-
 
     def skeleton_to_depth(self, p):
         x = (p[0] * self.intrinsic[0][0]) / p[2] + self.intrinsic[0][2]
         y = (p[1] * self.intrinsic[1][1]) / p[2] + self.intrinsic[1][2]
         return torch.Tensor([x, y, p[2]])
 
-
     def compute_frustum_bounds(self, world_to_grid, camera_to_world):
         corner_points = camera_to_world.new(8, 4, 1).fill_(1)
         # Compute 8 bounding box points from the cameras point of view in the real world
-	    # depth min
+        # depth min
         corner_points[0][:3] = self.depth_to_skeleton(0, 0, self.depth_min).unsqueeze(1)
         corner_points[1][:3] = self.depth_to_skeleton(self.image_dims[0] - 1, 0, self.depth_min).unsqueeze(1)
         corner_points[2][:3] = self.depth_to_skeleton(self.image_dims[0] - 1, self.image_dims[1] - 1, self.depth_min).unsqueeze(1)
@@ -52,7 +49,6 @@ class ProjectionHelper():
         bbox_max1, _ = torch.max(pu[:, :3, 0], 0) 
         bbox_max = np.maximum(bbox_max0.cpu(), bbox_max1.cpu())
         return bbox_min, bbox_max
-
 
     # TODO make runnable on cpu as well...
     def compute_projection(self, depth, camera_to_world, world_to_grid):
@@ -124,6 +120,7 @@ class ProjectionHelper():
         lin_indices_2d[1:1+lin_indices_2d[0]] = torch.index_select(valid_image_ind_lin, 0, torch.nonzero(depth_mask)[:,0])
         num_ind = lin_indices_3d[0]
         return lin_indices_3d, lin_indices_2d
+
 
 # Inherit from Function
 class Projection(Function):

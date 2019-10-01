@@ -1,12 +1,11 @@
-
 import os, sys, inspect
 import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import numpy as np
 
-import util
-from projection import Projection
+import segtester.algs.mv3d.util
+from .projection import Projection
 
 # z-y-x coordinates
 class Model2d3d(nn.Module):
@@ -100,7 +99,8 @@ class Model2d3d(nn.Module):
         num_images = projection_indices_3d.shape[0] // batch_size
 
         # project 2d to 3d
-        image_features = [Projection.apply(ft, ind3d, ind2d, volume_dims) for ft, ind3d, ind2d in zip(image_features, projection_indices_3d, projection_indices_2d)]
+        image_features = [Projection.apply(ft, ind3d, ind2d, volume_dims) for ft, ind3d, ind2d in
+                          zip(image_features, projection_indices_3d, projection_indices_2d)]
         image_features = torch.stack(image_features, dim=4)
 
         # reshape to max pool over features
