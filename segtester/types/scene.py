@@ -31,3 +31,12 @@ class Scene:
 
     def get_depth_size(self):
         raise NotImplementedError()
+
+    def get_depth_scale(self):
+        return NotImplementedError()
+
+    def get_depth_position_it(self):
+        return NotImplementedError()
+
+    def get_image_viewpoints_grid(self, vox_dims, min_pcd, voxel_size, padding, process_nth_frame):
+        return NotImplementedError()
