@@ -6,6 +6,7 @@ from segtester import logger
 import csv
 from segtester.types import Scene, Dataset
 from segtester.util.sensreader import SensorData
+from segtester.util.create_image_viewpoint_grid import create_image_viewpoints_grid
 from datetime import datetime
 
 from typing import TYPE_CHECKING
@@ -44,6 +45,14 @@ class ScannetScene(Scene):
         for i, image in enumerate(sens_data.get_image_generator()):
             yield image.get_color_image(), image.get_depth_image(), self.get_mock_timestamp(i), i
 
+    def get_image_viewpoints_grid(self, vox_dims, min_pcd, voxel_size, padding, process_nth_frame):
+        return create_image_viewpoints_grid(self, vox_dims, min_pcd, voxel_size, padding, process_nth_frame)
+
+    def get_depth_position_it(self):
+        sens_data = self.get_sens_data()
+        for i, image in enumerate(sens_data.get_image_generator()):
+            yield image.get_depth_image(), image.camera_to_world, i
+
     def get_intrinsic_rgb(self):
         return self.get_sens_data().intrinsic_color
 
@@ -55,6 +64,9 @@ class ScannetScene(Scene):
 
     def get_extrinsic_depth(self):
         return self.get_sens_data().extrinsic_depth
+
+    def get_depth_scale(self):
+        return self.get_sens_data().depth_shift
 
     def get_num_frames(self):
         sens_data = self.get_sens_data()
