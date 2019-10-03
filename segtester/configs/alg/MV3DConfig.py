@@ -17,6 +17,7 @@ class Execute3DMVConfig(BCNF.ConfigParser):
         self.depth_max = BCNF.OptionalMember(default_ret=4.0)
         self.voxel_size = BCNF.OptionalMember(default_ret=0.05)
         self.num_classes = BCNF.OptionalMember(default_ret=42)
+        self.process_nth_frame = BCNF.OptionalMember(default_ret=10)
 
     def __call__(self, base_result_path, dataset_conf, *args, **kwargs):
         from segtester.algs.mv3d.mv3d import Execute3DMV

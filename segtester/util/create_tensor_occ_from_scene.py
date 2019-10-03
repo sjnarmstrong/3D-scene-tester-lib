@@ -2,7 +2,7 @@ import torch
 from segtester.types.scene import Scene
 
 
-def create_tensor_occ(scene: Scene, voxel_size=0.05, padding=31 // 2, device=None):
+def create_tensor_occ(scene: Scene, voxel_size=0.05, padding_x=31 // 2, padding_y=31 // 2, device=None):
     if device is None:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -12,9 +12,11 @@ def create_tensor_occ(scene: Scene, voxel_size=0.05, padding=31 // 2, device=Non
 
     occ_size_float = (max_coord - min_coord) / voxel_size
     occ_start = min_coord - (occ_size_float.remainder(1.0) / 2.0)
-    occ_start[:2] -= padding * voxel_size
+    occ_start[0] -= padding_x * voxel_size
+    occ_start[1] -= padding_y * voxel_size
     occ_size = occ_size_float.ceil()
-    occ_size[:2] += 2 * padding
+    occ_size[0] += 2 * padding_x
+    occ_size[1] += 2 * padding_y
 
     occ_grid = torch.zeros(int(occ_size[0]), int(occ_size[1]), int(occ_size[2]), dtype=torch.bool, device=device)
 

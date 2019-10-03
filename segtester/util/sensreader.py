@@ -64,14 +64,33 @@ class SensorData:
             self.depth_height = struct.unpack('I', f.read(4))[0]
             self.depth_shift = struct.unpack('f', f.read(4))[0]	 # conversion from float[m] to ushort (typically 1000f)
             self.num_frames = struct.unpack('Q', f.read(8))[0]
-            self.frame_offset = f.tell()  # OFFSET IN FILE TO START OF FRAME DATA
+            self._frame_offset = f.tell()  # OFFSET IN FILE TO START OF FRAME DATA
+            self._offset_per_frame = None
 
     def get_image_generator(self):
         with open(self.filename, 'rb') as f:
-            f.seek(self.frame_offset)
+            f.seek(self._frame_offset)
             for i in range(self.num_frames):
                 yield RGBDFrame(f, self.color_compression_type, self.depth_compression_type,
                                 (self.depth_height, self.depth_width))
+
+    def populate_offset_per_frame(self):
+        with open(self.filename, 'rb') as f:
+            f.seek(self._frame_offset)
+            self._offset_per_frame=[]
+            for _ in range(self.num_frames):
+                RGBDFrame(f, self.color_compression_type, self.depth_compression_type,
+                          (self.depth_height, self.depth_width))
+                self._offset_per_frame.append(f.tell())
+
+    def __getitem__(self, key):
+        if self._offset_per_frame is None:
+            self.populate_offset_per_frame()
+        offset = self._offset_per_frame[key]
+        with open(self.filename, 'rb') as f:
+            f.seek(offset)
+            return RGBDFrame(f, self.color_compression_type, self.depth_compression_type,
+                             (self.depth_height, self.depth_width))
 
     def __repr__(self):
         return f"""SensorData:
@@ -92,7 +111,6 @@ class SensorData:
     depth_height: {self.depth_height}
     depth_shift: {self.depth_shift}
     num_frames: {self.num_frames}
-    frame_offset: {self.frame_offset}
 ------------------------------------------------------------------------------------------------------------------------
 """
 
@@ -102,6 +120,12 @@ if __name__ == "__main__":
     from time import sleep
     _sdata = SensorData("/mnt/1C562D12562CEDE8/DATASETS/scannet/scenes/scans/scene0706_00/scene0706_00.sens")
     print(_sdata)
+
+    test_img = _sdata[10]
+    Image.fromarray(test_img.get_color_image()).show()
+    test_img = _sdata[100]
+    Image.fromarray(test_img.get_color_image()).show()
+
     for i, _image in enumerate(_sdata.get_image_generator()):
         if i % 100 !=0:
             continue
