@@ -1,0 +1,14 @@
+---
+name: Base Test
+description: This test serves as an example to how a config file may look
+base_result_path: "/mnt/1C562D12562CEDE8/RESULTS/TestNoDate"
+tests:
+- id: ExecuteAlg
+  alg:
+    id: 3DMV
+    model_path: "/mnt/1C562D12562CEDE8/MODELS/3DMV/scannetv2/scannet5_model.pth"
+    model2d_orig_path: "/mnt/1C562D12562CEDE8/MODELS/3DMV/scannetv2/2d_scannet.pth"
+  dataset:
+    id: "SCANNET"
+    file_map: "/mnt/1C562D12562CEDE8/DATASETS/csv_conf/scenenn_mock_hd.csv"
+meta: {}

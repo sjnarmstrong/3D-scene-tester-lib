@@ -1,4 +1,3 @@
-import open3d as o3d
 import numpy as np
 import json
 import os
@@ -6,8 +5,9 @@ from segtester import logger
 import csv
 from segtester.types import Scene, Dataset
 from segtester.util.sensreader import SensorData
-from segtester.util.create_image_viewpoint_grid import create_image_viewpoints_grid
 from datetime import datetime
+import open3d as o3d
+
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -45,9 +45,6 @@ class ScannetScene(Scene):
         for i, image in enumerate(sens_data.get_image_generator()):
             yield image.get_color_image(), image.get_depth_image(), self.get_mock_timestamp(i), i
 
-    def get_image_viewpoints_grid(self, vox_dims, min_pcd, voxel_size, padding, process_nth_frame):
-        return create_image_viewpoints_grid(self, vox_dims, min_pcd, voxel_size, padding, process_nth_frame)
-
     def get_depth_position_it(self):
         sens_data = self.get_sens_data()
         for i, image in enumerate(sens_data.get_image_generator()):
@@ -77,6 +74,10 @@ class ScannetScene(Scene):
 
     def get_depth_size(self):
         return self.get_sens_data().depth_height, self.get_sens_data().depth_width
+
+    def get_image_info_index(self, index):
+        rgbd_image = self.get_sens_data()[index]
+        return rgbd_image.get_color_image(), rgbd_image.get_depth_image(), rgbd_image.camera_to_world
 
     def get_pcd(self):
         return o3d.io.read_point_cloud(self.mesh_path)

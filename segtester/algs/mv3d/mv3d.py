@@ -1,4 +1,5 @@
 from segtester.types import Scene, Dataset
+import open3d as o3d  # https://github.com/pytorch/pytorch/issues/19739 Thanks
 import torch
 from tqdm import tqdm
 from segtester import logger
@@ -56,11 +57,11 @@ class Execute3DMV:
         model.load_state_dict(torch.load(self.conf.model_path))
 
         # move to gpu
-        model = model.cuda()
+        model = model.to(self.device)
         model.eval()
-        model2d_fixed = model2d_fixed.cuda()
+        model2d_fixed = model2d_fixed.to(self.device)
         model2d_fixed.eval()
-        model2d_trainable = model2d_trainable.cuda()
+        model2d_trainable = model2d_trainable.to(self.device)
         model2d_trainable.eval()
         # model2d_classifier = model2d_classifier.cuda()
         # model2d_classifier.eval()
@@ -88,7 +89,52 @@ class Execute3DMV:
             for scene in tqdm(dataset.scenes, desc="scene"):
                 try:
 
-                    scene.get
+                    scene_occ, occ_start = scene.get_tensor_occ(voxel_size=self.conf.voxel_size,
+                                                                padding_x=self.grid_padX,
+                                                                padding_y=self.grid_padY,
+                                                                device=self.device)
+
+                    world_to_grids = scene.get_world_to_grids(scene_occ.shape, occ_start,
+                                                              self.conf.voxel_size, self.device)
+                    image_viewpoint_grid = scene.get_image_viewpoints_grid(
+                        scene_occ.shape, occ_start, self.conf.voxel_size, self.conf.process_nth_frame, self.device)
+
+                    scene_occ = scene_occ.permute(2, 0, 1)
+                    scene_occ = torch.stack([scene_occ, scene_occ])
+
+                    if scene_occ.shape[1] > self.column_height:
+                        scene_occ = scene_occ[:, :self.column_height, :, :]
+                    scene_occ_sz = scene_occ.shape[1:]
+
+                    # init a few things for prediction
+                    depth_image = torch.empty(self.num_images, self.proj_image_dims[1], self.proj_image_dims[0],
+                                              dtype=torch.float, device=self.device)
+                    color_image = torch.empty(self.num_images, 3, self.input_image_dims[1], self.input_image_dims[0],
+                                              dtype=torch.float, device=self.device)
+                    world_to_grid = torch.empty(self.num_images, 4, 4,
+                                                dtype=torch.float, device=self.device)
+                    pose = torch.empty(self.num_images, 4, 4,
+                                       dtype=torch.float, device=self.device)
+                    output_probs = torch.zeros(self.conf.num_classes, scene_occ_sz[0], scene_occ_sz[1], scene_occ_sz[2],
+                                               dtype=torch.float, device=self.device)
+                    # make sure nonsingular
+                    for k in range(self.num_images):
+                        pose[k] = torch.eye(4)
+                        world_to_grid[k] = torch.eye(4)
+
+                    # go thru all columns
+                    # note, voxels are split into grid of 31x31x62. In order to ensure that convolution is proper,
+                    # a total of 31//2 zero voxels are used for padding
+                    for y in range(self.grid_padY, scene_occ_sz[1] - self.grid_padY):
+                        for x in range(self.grid_padX, scene_occ_sz[2] - self.grid_padX):
+                            input_occ = scene_occ[:, :,
+                                                  y-self.grid_padY:y+self.grid_padY+1,
+                                                  x-self.grid_padX:x+self.grid_padX+1].unsqueeze(0)
+                            cur_frame_ids = image_viewpoint_grid[y][x]
+                            if len(cur_frame_ids) < self.num_images or \
+                                    torch.sum(input_occ[0, 0, :, self.grid_padY, self.grid_padX]) == 0:
+                                continue
+
 
 
                 except Exception as e:
