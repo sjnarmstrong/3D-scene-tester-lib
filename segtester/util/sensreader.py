@@ -65,27 +65,27 @@ class SensorData:
             self.depth_shift = struct.unpack('f', f.read(4))[0]	 # conversion from float[m] to ushort (typically 1000f)
             self.num_frames = struct.unpack('Q', f.read(8))[0]
             self._frame_offset = f.tell()  # OFFSET IN FILE TO START OF FRAME DATA
-            self._offset_per_frame = None
+            self._offset_per_frame = []
 
     def get_image_generator(self):
         with open(self.filename, 'rb') as f:
             f.seek(self._frame_offset)
             for i in range(self.num_frames):
+                if len(self._offset_per_frame) == i:
+                    self._offset_per_frame.append(f.tell())
                 yield RGBDFrame(f, self.color_compression_type, self.depth_compression_type,
                                 (self.depth_height, self.depth_width))
 
-    def populate_offset_per_frame(self):
-        with open(self.filename, 'rb') as f:
-            f.seek(self._frame_offset)
-            self._offset_per_frame=[]
-            for _ in range(self.num_frames):
-                RGBDFrame(f, self.color_compression_type, self.depth_compression_type,
-                          (self.depth_height, self.depth_width))
-                self._offset_per_frame.append(f.tell())
+    def _get_image_at_index_loop(self, index):
+        if index < 0 or index >= self.num_frames:
+            raise IndexError
+        for i, image in enumerate(self.get_image_generator()):
+            if i == index:
+                return image
 
     def __getitem__(self, key):
-        if self._offset_per_frame is None:
-            self.populate_offset_per_frame()
+        if key >= len(self._offset_per_frame):
+            return self._get_image_at_index_loop(key)
         offset = self._offset_per_frame[key]
         with open(self.filename, 'rb') as f:
             f.seek(offset)
