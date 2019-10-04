@@ -1,10 +1,13 @@
 from segtester.types import Scene, Dataset
 import open3d as o3d  # https://github.com/pytorch/pytorch/issues/19739 Thanks
 import torch
+import torchvision.transforms as transforms
 from tqdm import tqdm
 from segtester import logger
+from PIL import Image
 from segtester.algs.mv3d import util
 import os
+import math
 from .projection import ProjectionHelper
 from .enet import create_enet_for_3d
 from .model import Model2d3d
@@ -36,7 +39,7 @@ class Execute3DMV:
         self.color_std = ENET_TYPES[self.conf.model2d_type][2]
         self.input_image_dims = [328, 256]
         self.proj_image_dims = [41, 32]
-        self.model = self.create_model()
+        self.model, self.model2d_fixed, self.model2d_trainable = self.create_model()
 
     def create_model(self):
         # Create model
@@ -65,14 +68,13 @@ class Execute3DMV:
         model2d_trainable.eval()
         # model2d_classifier = model2d_classifier.cuda()
         # model2d_classifier.eval()
-        return model
+        return model, model2d_fixed, model2d_trainable
 
     def init_for_scenes(self, scene: Scene):
 
         # Camera init
         intrinsic = torch.from_numpy(scene.get_intrinsic_depth()[:3, :3])
-        intrinsic_image_width, intrinsic_image_height = scene.get_depth_size() # Todo assert that is correct should be 640, 480
-        assert intrinsic_image_width == 640 #todo remove me im only for testing
+        intrinsic_image_height, intrinsic_image_width = scene.get_depth_size() # Todo assert that is correct should be 640, 480
         intrinsic = util.adjust_intrinsic(intrinsic, [intrinsic_image_width, intrinsic_image_height],
                                           self.proj_image_dims)
         intrinsic = intrinsic.to(self.device)
@@ -82,12 +84,46 @@ class Execute3DMV:
 
         self.model.intrinsic = intrinsic
 
+        return projection
+
+    def fetch_and_scale_images(self, scene: Scene):
+        resize_width = int(math.floor(new_image_dims[1] * float(image_dims[0]) / float(image_dims[1])))
+        depth_transforms = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.Resize([new_image_dims[1], resize_width], interpolation=Image.NEAREST),
+            transforms.CenterCrop([new_image_dims[1], new_image_dims[0]]),
+            transforms.ToTensor(),
+            transforms.Lambda(lambda x: x/scene.get_depth_scale())
+        ])
+
+        resize_width = int(math.floor(new_image_dims[1] * float(image_dims[0]) / float(image_dims[1])))
+        colour_transforms = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.Resize([new_image_dims[1], resize_width], interpolation=Image.NEAREST),
+            transforms.CenterCrop([new_image_dims[1], new_image_dims[0]]),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=self.color_mean, std=self.color_std)
+        ])
+        for c_img, colour_img, location in
+        color_image = misc.imread(color_file)
+        depth_image = misc.imread(depth_file)
+        pose = load_pose(pose_file)
+        # preprocess
+        depth_image = resize_crop_image(depth_image, depth_image_dims)
+        color_image = resize_crop_image(color_image, color_image_dims)
+        depth_image = depth_image.astype(np.float32) / 1000.0
+        color_image = np.transpose(color_image, [2, 0, 1])  # move feature to front
+        color_image = normalize(torch.Tensor(color_image.astype(np.float32) / 255.0))
+
+
     def __call__(self, base_result_path, dataset_conf, *_, **__):
         dataset: Dataset = dataset_conf.get_dataset()
 
         with torch.no_grad():
             for scene in tqdm(dataset.scenes, desc="scene"):
                 try:
+
+                    projection = self.init_for_scenes(scene)
 
                     scene_occ, occ_start = scene.get_tensor_occ(voxel_size=self.conf.voxel_size,
                                                                 padding_x=self.grid_padX,
@@ -134,6 +170,34 @@ class Execute3DMV:
                             if len(cur_frame_ids) < self.num_images or \
                                     torch.sum(input_occ[0, 0, :, self.grid_padY, self.grid_padX]) == 0:
                                 continue
+
+
+                            # get first few images that cover location
+                            for k in range(self.num_images):
+                                # depth image is 1/8 the dimentions of colour
+                                c_img, d_img, p = scene.get_image_info_index(k)
+                                color_image[k] = torch.from_numpy(c_img)
+                                depth_image[k] = torch.from_numpy(d_img)
+                                pose[k] = torch.from_numpy(p)
+                                world_to_grid[k] = torch.from_numpy(world_to_grids[y, x])
+                            proj_mapping = [projection.compute_projection(d, c, t) for d, c, t in
+                                            zip(depth_image, pose, world_to_grid)]
+                            if None in proj_mapping:  # invalid sample
+                                continue
+
+                            proj_mapping = zip(*proj_mapping)
+                            # stack the orelation between 3D coords wrt grid and the 2D pixel values
+                            proj_ind_3d = torch.stack(proj_mapping[0])
+                            proj_ind_2d = torch.stack(proj_mapping[1])
+
+                            imageft_fixed = self.model2d_fixed(torch.autograd.Variable(color_image))
+                            imageft = self.model2d_trainable(imageft_fixed)
+
+                            out = self.model(torch.autograd.Variable(input_occ), imageft,
+                                             torch.autograd.Variable(proj_ind_3d),
+                                             torch.autograd.Variable(proj_ind_2d), grid_dims)
+                            output = out.data[0].permute(1, 0)
+                            output_probs[:, :, y, x] = output.cpu()[:, :scene_occ_sz[0]]
 
 
 
