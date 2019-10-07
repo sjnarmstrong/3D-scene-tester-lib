@@ -41,6 +41,12 @@ class RGBDFrame(object):
     def decompress_color_jpeg(self):
         return imageio.imread(self.color_data)
 
+    def get_camera_to_world(self):
+        return self.camera_to_world
+
+    def get_timestamp(self):
+        raise NotImplementedError
+
 
 class SensorData:
 

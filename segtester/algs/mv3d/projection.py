@@ -51,7 +51,7 @@ class ProjectionHelper(object):
         return bbox_min, bbox_max
 
     # TODO make runnable on cpu as well...
-    def compute_projection(self, depth, camera_to_world, world_to_grid):
+    def compute_projection(self, depth, camera_to_world, world_to_grid, pcd, xy, c_img):
         # compute projection by voxels -> image
         world_to_camera = torch.inverse(camera_to_world)
         grid_to_world = torch.inverse(world_to_grid)
@@ -89,6 +89,44 @@ class ProjectionHelper(object):
 
         # transform to current frame
         p = torch.mm(world_to_camera, torch.mm(grid_to_world, coords))
+
+
+        ###### Start test code
+        # if xy[0]%10==0 and xy[1]%10==0:
+        #     print(xy)
+        #     import open3d as o3d
+        #     from torchvision import transforms
+        #
+        #     class UnNormalize(object):
+        #         def __init__(self, mean, std):
+        #             self.mean = mean
+        #             self.std = std
+        #
+        #         def __call__(self, tensor):
+        #             """
+        #             Args:
+        #                 tensor (Tensor): Tensor image of size (C, H, W) to be normalized.
+        #             Returns:
+        #                 Tensor: Normalized image.
+        #             """
+        #             for t, m, s in zip(tensor, self.mean, self.std):
+        #                 t.mul_(s).add_(m)
+        #                 # The normalize code -> t.sub_(m).div_(s)
+        #             return tensor
+        #
+        #     inverse_transform = transforms.Compose([
+        #         UnNormalize([0.496342, 0.466664, 0.440796], [0.277856, 0.28623, 0.291129]),
+        #         transforms.ToPILImage()
+        #     ])
+        #     inverse_transform(c_img.cpu()).show()
+        #     test = torch.mm(grid_to_world, coords[:, None].to(dtype=coords.dtype, device=coords.device)).cpu().numpy()
+        #     pred_pcd = o3d.geometry.PointCloud()
+        #     pred_pcd.points = o3d.utility.Vector3dVector(test[:3].T)
+        #     pcd2 = o3d.geometry.PointCloud()
+        #     pcd2.points = o3d.utility.Vector3dVector(pcd)
+        #     pcd3 = o3d.io.read_point_cloud("/mnt/1C562D12562CEDE8/DATASETS/scannet/scenes/scans_test/scene0707_00/scene0707_00_vh_clean_2.ply")
+        #     o3d.visualization.draw_geometries([pred_pcd, pcd3])
+        ##### end
 
         # project into image Duplication of skeleton_to_depth
         p[0] = (p[0] * self.intrinsic[0][0]) / p[2] + self.intrinsic[0][2]

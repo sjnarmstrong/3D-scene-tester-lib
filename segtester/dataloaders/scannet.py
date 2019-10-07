@@ -43,12 +43,17 @@ class ScannetScene(Scene):
     def get_rgb_depth_image_it(self):
         sens_data = self.get_sens_data()
         for i, image in enumerate(sens_data.get_image_generator()):
-            yield image.get_color_image(), image.get_depth_image(), self.get_mock_timestamp(i), i
+            yield image.get_color_image(), image.get_depth_image(), image.camera_to_world, self.get_mock_timestamp(i), i
 
     def get_depth_position_it(self):
         sens_data = self.get_sens_data()
         for i, image in enumerate(sens_data.get_image_generator()):
             yield image.get_depth_image(), image.camera_to_world, i
+
+    def get_rgbd_image_it(self):
+        sens_data = self.get_sens_data()
+        for i, image in enumerate(sens_data.get_image_generator()):
+            yield image, i
 
     def get_intrinsic_rgb(self):
         return self.get_sens_data().intrinsic_color

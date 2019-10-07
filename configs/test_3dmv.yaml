@@ -8,6 +8,9 @@ tests:
     id: 3DMV
     model_path: "/mnt/1C562D12562CEDE8/MODELS/3DMV/scannetv2/scannet5_model.pth"
     model2d_orig_path: "/mnt/1C562D12562CEDE8/MODELS/3DMV/scannetv2/2d_scannet.pth"
+    process_nth_frame: 5
+    num_nearest_images: 4
+    voxel_size: 0.048
   dataset:
     id: "SCANNET"
     file_map: "/mnt/1C562D12562CEDE8/DATASETS/csv_conf/scenenn_mock_hd.csv"
