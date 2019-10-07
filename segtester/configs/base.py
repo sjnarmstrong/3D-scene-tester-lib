@@ -9,7 +9,7 @@ class OptionalMember:
         self.parsable_object = parsable_object
         self.default_ret = default_ret
 
-    def _parse_args(self, key: str, trace: list, **kwargs):
+    def _parse_args(self, key: str, trace: list, parent=None, **kwargs):
         # noinspection PyBroadException
         try:
             logger.debug(f"Parsing member {' -> '.join(trace)}: {key}...")
@@ -19,7 +19,7 @@ class OptionalMember:
 
             if self.parsable_object is not None:
                 # noinspection PyProtectedMember
-                return self.parsable_object()._parse_args(key, trace, **kwargs)
+                return self.parsable_object()._parse_args(key, trace, parent, **kwargs)
             return val, True
         except Exception as e:
             logger.error(f"Unknown error occurred while parsing trace:\n{' -> '.join(trace)}")
@@ -31,13 +31,13 @@ class RequiredMember(OptionalMember):
     def __init__(self, parsable_object=None):
         super().__init__(parsable_object)
 
-    def _parse_args(self, key: str, trace: list, **kwargs):
+    def _parse_args(self, key: str, trace: list, parent=None, **kwargs):
         # noinspection PyBroadException
         try:
             if key not in kwargs:
                 logger.error(f"Could not find required parameter: {key} with trace:\n{' -> '.join(trace)}")
                 return None, False
-            return super()._parse_args(key, trace, **kwargs)
+            return super()._parse_args(key, trace, parent, **kwargs)
         except Exception as e:
             logger.error(f"Unknown error occurred while parsing trace:\n{' -> '.join(trace)}")
             logger.error(str(e))
@@ -64,7 +64,7 @@ class IterableMember:
     def __call__(self):
         return self
 
-    def _parse_args(self, key: str, trace: list, **kwargs):
+    def _parse_args(self, key: str, trace: list, parent=None, **kwargs):
         # noinspection PyBroadException
         try:
             logger.debug(f"Parsing IT {' -> '.join(trace)}: {key}...")
@@ -76,7 +76,8 @@ class IterableMember:
                     key_it = str(i)
                     if self.parsable_object is not None:
                         # noinspection PyProtectedMember
-                        item, succ_it = self.parsable_object()._parse_args(key_it, trace + [key_it], **{key_it: item})
+                        item, succ_it = self.parsable_object()._parse_args(key_it, trace + [key_it], parent,
+                                                                           **{key_it: item})
                         success = success and succ_it
                     ret.append(item)
                 return ret, success
@@ -99,7 +100,7 @@ class MappableMember:
     def __call__(self):
         return self
 
-    def _parse_args(self, key: str, trace: list, **kwargs):
+    def _parse_args(self, key: str, trace: list, parent=None, **kwargs):
         # noinspection PyBroadException
         try:
             val = kwargs[key]
@@ -111,7 +112,7 @@ class MappableMember:
                 logger.error(f"Expected id to be one of: {set(self.type_map.keys())}\n -> trace: {' -> '.join(trace)}")
                 return None, False
             # noinspection PyProtectedMember
-            return self.type_map[val.get('id')]()._parse_args(key, trace, **kwargs)
+            return self.type_map[val.get('id')]()._parse_args(key, trace, parent, **kwargs)
         except Exception as e:
             logger.error(f"Unknown error occurred while parsing trace:\n{' -> '.join(trace)}")
             logger.error(str(e))
@@ -130,8 +131,9 @@ class ConfigParser:
 
     def __init__(self):
         self.meta = OptionalMember(default_ret={})
+        self.parent_config = OptionalMember(default_ret=None)
 
-    def _parse_args(self, key, trace: list, **kwargs):
+    def _parse_args(self, key, trace: list, parent=None, **kwargs):
         # noinspection PyBroadException
         try:
             logger.debug(f"Parsing conf {' -> '.join(trace)}: {key}...")
@@ -149,12 +151,13 @@ class ConfigParser:
                     continue
                 kwarg_keys.discard(key)
                 # noinspection PyProtectedMember
-                res_val, success = value._parse_args(key, trace + [key], **curr_config)
+                res_val, success = value._parse_args(key, trace + [key], self, **curr_config)
                 parse_success = parse_success and success
                 setattr(self, key, res_val)
 
             if len(kwarg_keys) > 0:
                 logger.warn(f"Skipping unknown keys: {kwarg_keys}\n -> in config file: {' -> '.join(trace)}")
+            self.parent_config = parent
             return self, parse_success
         except Exception as e:
             logger.error(f"Unknown error occurred while parsing trace:\n{' -> '.join(trace)}")

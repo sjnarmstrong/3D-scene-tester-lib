@@ -35,6 +35,9 @@ class ExecuteSemanticFusionConfig(BCNF.ConfigParser):
         self.so3 = BCNF.OptionalMember(default_ret=True)
         self.frameToFrameRGB = BCNF.OptionalMember(default_ret=False)
 
+        self.use_gt_pose = BCNF.OptionalMember(default_ret=False)
+        self.save_frames = BCNF.OptionalMember(default_ret=False)
+
     def __call__(self, base_result_path, dataset_conf, *args, **kwargs):
         from segtester.algs.semanticfusion.semanticfusion import ExecuteSemanticFusion
         ExecuteSemanticFusion(self)(base_result_path=base_result_path, dataset_conf=dataset_conf, *args, **kwargs)

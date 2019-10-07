@@ -66,7 +66,7 @@ class ExecuteSemanticFusion:
                 height, width = scene.get_depth_size()
                 Resolution.getInstance(width, height)
                 Intrinsics.getInstance(intrinsic_res[0, 0], intrinsic_res[1, 1],
-                                       intrinsic_res[0, 2], intrinsic_res[0, 1])
+                                       intrinsic_res[0, 2], intrinsic_res[1, 2])
 
                 save_path = self.conf.format_string_with_meta(f"{base_result_path}/{self.conf.save_path}", **{
                     "dataset_id": dataset_conf.id, "scene_id": scene.id,
@@ -76,26 +76,46 @@ class ExecuteSemanticFusion:
                 emap = get_map(self.class_colour_lookup, f"{save_path}/elastic_generated", self.conf)
                 frame_save_path = f"{save_path}/frames"
                 os.makedirs(frame_save_path, exist_ok=True)
-                for rgb, depth, timestamp, frame_num in \
+                pose_array = np.empty((scene.get_num_frames(), 16), dtype=np.float32)
+
+                init_world_to_cam = None
+                init_cam_to_world = None
+                for rgb, depth, camera_to_world, timestamp, frame_num in \
                         tqdm(scene.get_rgb_depth_image_it(), desc="frame", total=scene.get_num_frames()):
+                    # if frame_num == 200:
+                    #     break
+                    if frame_num == 0:
+                        init_cam_to_world = camera_to_world
+                        init_world_to_cam = np.linalg.inv(camera_to_world)
 
                     self.gui.preCall()
                     rgb = align_images(rgb, width, height)
                     rgb, depth = rgb.flatten(), depth.flatten()
 
+                    if scene.get_depth_scale() != 1000:
+                        depth = np.round(depth.astype(np.float) * 1000 / scene.get_depth_scale()).astype(np.uint16)
+
                     # convert timestamp format from python to one of NYu
-                    if not emap.ProcessFrameNumpy(rgb, depth, int(timestamp*1000)):
-                        raise Exception("Elastic fusion lost!")
+                    if self.conf.use_gt_pose:
+                        if not emap.ProcessFrameNumpy(rgb, depth, int(timestamp*1000), init_world_to_cam @ camera_to_world):
+                            raise Exception("Elastic fusion lost!")
+                    else:
+                        if not emap.ProcessFrameNumpy(rgb, depth, int(timestamp*1000), np.empty([0,0], dtype=np.float32)):
+                            raise Exception("Elastic fusion lost!")
 
                     self.semantic_fusion.UpdateProbabilityTable(emap)
                     if frame_num == 0 or (frame_num > 1 and ((frame_num + 1) % self.conf.cnn_skip_frames == 0)):
                         predicted_probs = \
                             self.semantic_fusion.PredictAndUpdateProbabilities(rgb, depth,
                                                                                self.caffe, emap, True)
-                    np.savez_compressed(f"{frame_save_path}/frame_{frame_num}", likelihoods=predicted_probs[:, :, :, 0])
+                    if self.conf.save_frames:
+                        np.savez_compressed(f"{frame_save_path}/frame_{frame_num}",
+                                            likelihoods=predicted_probs[:, :, :, 0])
                     if self.conf.use_crf and frame_num % self.conf.crf_skip_frames == 0:
                         print("Performing CRF Update...")
                         self.semantic_fusion.CRFUpdate(emap, self.conf.crf_iterations)
+
+                    pose_array[frame_num] = emap.getCurrentPose().flat
 
                     self.gui.renderMap(emap)
                     self.semantic_fusion.CalculateProjectedProbabilityMap(emap)  # note I think this may be important
@@ -105,13 +125,18 @@ class ExecuteSemanticFusion:
 
                     self.gui.postCall()
 
+                print("here")
                 xyz, rgb, pr = self.semantic_fusion.GetGlobalMap(emap)
                 pred_pcd = o3d.geometry.PointCloud()
-                pred_pcd.points = o3d.utility.Vector3dVector(xyz[:, :3])
+                xyz_hold = xyz[:, :4].copy()
+                xyz_hold[:, 3] = 1
+                xyz_hold = xyz_hold @ init_cam_to_world.T
+                pred_pcd.points = o3d.utility.Vector3dVector(xyz_hold[:, :3])
                 pred_pcd.colors = o3d.utility.Vector3dVector(rgb/255)
                 pred_pcd.normals = o3d.utility.Vector3dVector(xyz[:, 3:])
                 o3d.io.write_point_cloud(f"{save_path}/pcd.ply", pred_pcd)
                 np.savez_compressed(f"{save_path}/probs", likelihoods=pr)
+                np.savez_compressed(f"{save_path}/poses", pose_array=pose_array)
 
             except Exception as e:
                 logger.error(f"Exception when running SemanticFusion on {dataset_conf.id}:{scene.id}. "
