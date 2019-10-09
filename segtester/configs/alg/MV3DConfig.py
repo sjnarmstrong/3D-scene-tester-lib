@@ -21,6 +21,7 @@ class Execute3DMVConfig(BCNF.ConfigParser):
         self.alg_name = BCNF.OptionalMember(default_ret="3DMV")
         self.save_path = BCNF.OptionalMember(default_ret="{dataset_id}/{scene_id}/{alg_name}/")
         self.save_frames = BCNF.OptionalMember(default_ret=False)
+        self.skip_existing = BCNF.OptionalMember(default_ret=True)
 
     def __call__(self, base_result_path, dataset_conf, *args, **kwargs):
         from segtester.algs.mv3d.mv3d import Execute3DMV

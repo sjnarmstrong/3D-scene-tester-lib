@@ -11,6 +11,7 @@ class ExecuteMinkowskiEngineConfig(BCNF.ConfigParser):
         self.cpu_only = BCNF.OptionalMember(default_ret=False)
         self.save_path = BCNF.OptionalMember(default_ret="{dataset_id}/{scene_id}/{alg_name}_{voxel_size}/")
         self.alg_name = BCNF.OptionalMember(default_ret="MinkUNet34C")
+        self.skip_existing = BCNF.OptionalMember(default_ret=True)
 
     def __call__(self, base_result_path, dataset_conf, *args, **kwargs):
         from segtester.algs.minkowski.minkowski import ExecuteMinkowskiEngine

@@ -17,6 +17,8 @@ from torch.nn import functional as F
 import torchvision.transforms as transforms
 import torch
 from math import ceil
+import shutil
+import sys
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -152,6 +154,12 @@ class Execute3DMV:
                         "dataset_id": dataset_conf.id, "scene_id": scene.id,
                         "alg_name": self.conf.alg_name,
                     })
+
+                    if self.conf.skip_existing and os.path.exists(f"{save_path}"):
+                        logger.warn(f"When processing {dataset_conf.id}->{scene.id}->{self.conf.alg_name}, "
+                                    f"found existing path {save_path}.\n Skipping this scene...")
+                        continue
+
                     os.makedirs(f"{save_path}/torch", exist_ok=True)
                     os.makedirs(f"{save_path}/frames", exist_ok=True)
 
@@ -265,7 +273,18 @@ class Execute3DMV:
                     pred_pcd.points = o3d.utility.Vector3dVector(pcd)
                     o3d.io.write_point_cloud(f"{save_path}/pcd.ply", pred_pcd)
                     np.savez_compressed(f"{save_path}/probs", likelihoods=masked_likelihoods)
-
+                except KeyboardInterrupt as e:
+                    try:
+                        logger.error(f"Detected [ctrl+c]. Performing cleanup and then exiting...")
+                        shutil.rmtree(save_path)
+                    except Exception:
+                        pass
+                    sys.exit(0)
                 except Exception as e:
-                    logger.exception(f"Exception when running ME on {dataset_conf.id}:{scene.id}. "
+                    try:
+                        logger.error(f"Exception when running {self.conf.alg_name} on {dataset_conf.id}:{scene.id}. "
                                      f"Skipping scene and moving on...")
+                        logger.error(str(e))
+                        shutil.rmtree(save_path)
+                    except Exception:
+                        pass

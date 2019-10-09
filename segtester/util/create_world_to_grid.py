@@ -71,7 +71,6 @@ if __name__ == "__main__":
         w_t_g = world_to_grids[y, x]
         grid_to_world = torch.inverse(w_t_g).cpu()
 
-
         lin_ind_volume = torch.arange(0, 31*31*62, out=torch.LongTensor())
         coords = poses[0].new(4, lin_ind_volume.size(0)) # ment to construct new tensor with same values as current tensor
         coords[2] = lin_ind_volume / (31*31)
@@ -79,9 +78,6 @@ if __name__ == "__main__":
         coords[1] = tmp / 31
         coords[0] = torch.remainder(tmp, 31)
         coords[3].fill_(1)
-
-
-
 
         inverse_transform = transforms.Compose([
             UnNormalize([0.496342, 0.466664, 0.440796], [0.277856, 0.28623, 0.291129]),

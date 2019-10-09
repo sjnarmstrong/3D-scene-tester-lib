@@ -52,6 +52,15 @@ class ResultsScene:
         labels = np.argmax(mask_labels, axis=1)
         return self.label_map[labels]
 
+    def get_pose_path(self):
+        from evo.core.trajectory import PosePath3D
+        from segtester.types.odometry import Trajectory
+        if self.poses_path is None:
+            return None
+        poses_np = np.load(self.poses_path)["pose_array"]
+        poses = [it.reshape(4,4) for it in poses_np]
+        return Trajectory(PosePath3D(poses_se3=poses))
+
 
 class ResultsDataset:
     def __init__(self, config: 'ResultsConfig'):
