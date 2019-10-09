@@ -1,0 +1,35 @@
+---
+name: Run scannet validation dataset
+description: Run all the algorithms on the validation part of scannet
+base_result_path: "/mnt/1C562D12562CEDE8/RESULTS/ActualResults/20191008"
+tests:
+  - id: ExecuteAlg
+    alg:
+      id: 3DMV
+      model_path: "/mnt/1C562D12562CEDE8/MODELS/3DMV/scannetv2/scannet5_model.pth"
+      model2d_orig_path: "/mnt/1C562D12562CEDE8/MODELS/3DMV/scannetv2/2d_scannet.pth"
+      process_nth_frame: 5
+      num_nearest_images: 4
+      voxel_size: 0.048
+    dataset:
+      id: "SCANNET"
+      file_map: "/media/sholto/Datasets/scenenn_val_dataset.csv"
+  - id: ExecuteAlg
+    alg:
+      id: MinkowskiEngine
+      weights_path: "/home/sholto/mnt/1C562D12562CEDE8/Repos/Uni/masters/algs/minkowski_runner/weights.pth"
+    dataset:
+      id: "SCANNET"
+      file_map: "/media/sholto/Datasets/scenenn_val_dataset.csv"
+  - id: ExecuteAlg
+    alg:
+      id: SemanticFusion
+      prototext_model_path: "/mnt/1C562D12562CEDE8/MODELS/semanticFusion/nyu_rgbd/inference.prototxt"
+      caffemodel_path: "/mnt/1C562D12562CEDE8/MODELS/semanticFusion/nyu_rgbd/inference.caffemodel"
+      class_colour_lookup_path: "/mnt/1C562D12562CEDE8/COMMONDEPS/semanticfusion2/class_colour_scheme.data"
+      caffe_use_cpu: true
+      cnn_skip_frames: 10
+    dataset:
+      id: "SCANNET"
+      file_map: "/media/sholto/Datasets/scenenn_val_dataset.csv"
+meta: {}

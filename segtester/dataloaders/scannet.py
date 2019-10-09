@@ -97,6 +97,13 @@ class ScannetScene(Scene):
 
         return instance_masks, mask_labels, self.get_pcd()
 
+    def get_pose_path(self):
+        from evo.core.trajectory import PosePath3D
+        from segtester.types.odometry import Trajectory
+        sens_data = self.get_sens_data()
+        poses = [image.camera_to_world for image in sens_data.get_image_generator()]
+        return Trajectory(PosePath3D(poses_se3=poses))
+
 
 class ScannetDataset(Dataset):
 

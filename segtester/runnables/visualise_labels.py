@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING
 from matplotlib import pyplot as plt
-import numpy as np
 from tqdm import tqdm
 import open3d as o3d
 from segtester import logger
@@ -13,7 +12,6 @@ if TYPE_CHECKING:
 class VisualisePredictions:
     def __init__(self, conf: 'VisualisePredictionsConfig'):
         self.cmap = plt.get_cmap("hsv")
-        self.dataset = conf.result_dataset.get_dataset()
         self.conf = conf
 
     def __call__(self, base_result_path, dataset_conf, *_, **__):
@@ -34,9 +32,7 @@ class VisualisePredictions:
                 print(f"{scene.alg_name} -- {scene.id}")
                 o3d.visualization.draw_geometries([pcd])
 
-
             except Exception as e:
                 logger.exception(f"Exception when running ME on {scene.alg_name}:{scene.id}. "
-                             f"Skipping scene and moving on...")
+                                 f"Skipping scene and moving on...")
                 logger.error(str(e))
-

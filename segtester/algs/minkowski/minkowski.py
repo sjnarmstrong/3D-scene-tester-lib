@@ -9,6 +9,8 @@ import numpy as np
 from tqdm import tqdm
 import os
 from segtester import logger
+import shutil
+import sys
 
 
 from typing import TYPE_CHECKING
@@ -51,9 +53,22 @@ class ExecuteMinkowskiEngine:
         with torch.no_grad():
             for scene in tqdm(dataset.scenes, desc="scene"):
                 try:
+                    save_path = None
                     pcd = scene.get_pcd()
 
                     for voxel_size in tqdm(self.conf.voxel_sizes, desc="voxel_size"):
+
+                        save_path = self.conf.format_string_with_meta(f"{base_result_path}/{self.conf.save_path}", **{
+                            "dataset_id": dataset_conf.id, "scene_id": scene.id,
+                            "alg_name": self.conf.alg_name, "voxel_size": voxel_size,
+                        })
+
+                        if self.conf.skip_existing and os.path.exists(f"{save_path}"):
+                            logger.warn(f"When processing "
+                                        f"{dataset_conf.id}->{scene.id}->{self.conf.alg_name}->{voxel_size}, "
+                                        f"found existing path {save_path}.\n Skipping this scene...")
+                            continue
+
                         sparce_tensor = generate_input_sparse_tensor(pcd, self.device, voxel_size)
 
                         soutput = self.model(sparce_tensor)
@@ -67,14 +82,21 @@ class ExecuteMinkowskiEngine:
                         pred_pcd = o3d.geometry.PointCloud()
                         pred_pcd.points = o3d.utility.Vector3dVector(coordinates * voxel_size)
 
-                        save_path = self.conf.format_string_with_meta(f"{base_result_path}/{self.conf.save_path}", **{
-                            "dataset_id": dataset_conf.id, "scene_id": scene.id,
-                            "alg_name": self.conf.alg_name, "voxel_size": voxel_size,
-                        })
                         os.makedirs(save_path, exist_ok=True)
                         o3d.io.write_point_cloud(f"{save_path}/pcd.ply", pred_pcd)
                         np.savez_compressed(f"{save_path}/probs", likelihoods=likelihoods, class_ids=max_pred)
+                except KeyboardInterrupt as e:
+                    try:
+                        logger.error(f"Detected [ctrl+c]. Performing cleanup and then exiting...")
+                        shutil.rmtree(save_path)
+                    except Exception:
+                        pass
+                    sys.exit(0)
                 except Exception as e:
-                    logger.error(f"Exception when running ME on {dataset_conf.id}:{scene.id}. "
-                                 f"Skipping scene and moving on...")
-                    logger.error(str(e))
+                    try:
+                        logger.error(f"Exception when running {self.conf.alg_name} on {dataset_conf.id}:{scene.id}. "
+                                     f"Skipping scene and moving on...")
+                        logger.error(str(e))
+                        shutil.rmtree(save_path)
+                    except Exception:
+                        pass

@@ -37,16 +37,16 @@ class Scene:
         raise NotImplementedError()
 
     def get_depth_scale(self):
-        return NotImplementedError()
+        raise NotImplementedError()
 
     def get_depth_position_it(self):
-        return NotImplementedError()
+        raise NotImplementedError()
 
     def get_rgbd_image_it(self) -> Iterator[Tuple[RGBDFrame, int]]:
-        return NotImplementedError()
+        raise NotImplementedError()
 
     def get_image_info_index(self, index):
-        return NotImplementedError()
+        raise NotImplementedError()
 
     def get_image_viewpoints_grid(self, vox_dims, occ_start, voxel_size=0.05, process_nth_frame=10, device=None):
         from segtester.util.create_image_viewpoint_grid import create_image_viewpoints_grid
@@ -60,3 +60,6 @@ class Scene:
     def get_world_to_grids(occ_grid_shape, occ_start, voxel_size=0.05, padding_x=15, padding_y=15, device=None):
         from segtester.util.create_world_to_grid import create_world_to_grids
         return create_world_to_grids(occ_grid_shape, occ_start, voxel_size, padding_x, padding_y, device)
+
+    def get_pose_path(self):
+        raise NotImplementedError()

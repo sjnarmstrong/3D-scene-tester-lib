@@ -17,6 +17,7 @@ class ExecuteSemanticFusionConfig(BCNF.ConfigParser):
         self.class_colour_lookup_path = BCNF.RequiredMember()
         self.save_path = BCNF.OptionalMember(default_ret="{dataset_id}/{scene_id}/{alg_name}/")
         self.alg_name = BCNF.OptionalMember(default_ret="SemanticFusion")
+        self.skip_existing = BCNF.OptionalMember(default_ret=True)
 
         # Elastic fusion config
         self.timeDelta = BCNF.OptionalMember(default_ret=200)

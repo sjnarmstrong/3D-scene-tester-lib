@@ -11,7 +11,8 @@ from tqdm import tqdm
 import os
 import numpy as np
 import open3d as o3d
-
+import shutil
+import sys
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -60,6 +61,17 @@ class ExecuteSemanticFusion:
         dataset: Dataset = dataset_conf.get_dataset()
         for scene in tqdm(dataset.scenes, desc="scene"):
             try:
+
+                save_path = self.conf.format_string_with_meta(f"{base_result_path}/{self.conf.save_path}", **{
+                    "dataset_id": dataset_conf.id, "scene_id": scene.id,
+                    "alg_name": self.conf.alg_name
+                })
+
+                if self.conf.skip_existing and os.path.exists(f"{save_path}"):
+                    logger.warn(f"When processing "
+                                f"{dataset_conf.id}->{scene.id}->{self.conf.alg_name}, "
+                                f"found existing path {save_path}.\n Skipping this scene...")
+                    continue
                 # intrinsic_res = scene.get_intrinsic_rgb()
                 # height, width = scene.get_rgb_size()
                 intrinsic_res = scene.get_intrinsic_depth()
@@ -67,11 +79,6 @@ class ExecuteSemanticFusion:
                 Resolution.getInstance(width, height)
                 Intrinsics.getInstance(intrinsic_res[0, 0], intrinsic_res[1, 1],
                                        intrinsic_res[0, 2], intrinsic_res[1, 2])
-
-                save_path = self.conf.format_string_with_meta(f"{base_result_path}/{self.conf.save_path}", **{
-                    "dataset_id": dataset_conf.id, "scene_id": scene.id,
-                    "alg_name": self.conf.alg_name
-                })
 
                 emap = get_map(self.class_colour_lookup, f"{save_path}/elastic_generated", self.conf)
                 frame_save_path = f"{save_path}/frames"
@@ -138,7 +145,18 @@ class ExecuteSemanticFusion:
                 np.savez_compressed(f"{save_path}/probs", likelihoods=pr)
                 np.savez_compressed(f"{save_path}/poses", pose_array=pose_array)
 
+            except KeyboardInterrupt as e:
+                logger.error(f"Detected [ctrl+c]. Performing cleanup and then exiting...")
+                try:
+                    shutil.rmtree(save_path)
+                except Exception:
+                    pass
+                sys.exit(0)
             except Exception as e:
-                logger.error(f"Exception when running SemanticFusion on {dataset_conf.id}:{scene.id}. "
+                logger.error(f"Exception when running {self.conf.alg_name} on {dataset_conf.id}:{scene.id}. "
                              f"Skipping scene and moving on...")
                 logger.error(str(e))
+                try:
+                    shutil.rmtree(save_path)
+                except Exception:
+                    pass
