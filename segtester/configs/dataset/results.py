@@ -7,7 +7,6 @@ class ResultsConfig(BCNF.ConfigParser):
         super().__init__()
         self.id = BCNF.OptionalMember()
         self.file_map = BCNF.RequiredMember()
-        self.label_map = BCNF.RequiredMember()
         self.dataset_id = BCNF.OptionalMember()
         self.base_result_path = BCNF.OptionalMember()
         self.load_path = BCNF.OptionalMember(default_ret="{dataset_id}/{scene_id}/{alg_name}/")

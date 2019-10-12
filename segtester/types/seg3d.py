@@ -6,10 +6,40 @@ SEARCH_TREES = {"KD": KDTree, "BALL": BallTree}
 
 
 class Seg3D(Seg):
-    def __init__(self, points, classes, instance_masks, instance_classes, class_map, confidence_scores=None):
-        super().__init__(classes, instance_masks, instance_classes, class_map, confidence_scores)
+    def __init__(self, points, classes, instance_masks, instance_classes, confidence_scores):
+        super().__init__(classes, instance_masks, instance_classes, confidence_scores)
         self.points = points
         self.search_tree = None
+        if instance_masks is None:
+            self.instance_masks, self.instance_classes = self.get_instance_masks_from_classes()
+
+    def get_instance_masks_from_classes(self, dist_thresh=0.60, classes_to_skip=[0]):
+        search_tree = self.get_search_tree()
+        instance_masks = []
+        instance_classes = []
+        unassigned_points = np.in1d(self.classes, classes_to_skip) == False
+        points_to_search = []
+        curr_instance_mask = None
+        curr_instance_class = None
+        while any(unassigned_points):
+            if len(points_to_search) == 0:
+                first_unassigned = np.argmax(unassigned_points)
+                points_to_search = [self.points[first_unassigned]]
+                curr_instance_class = self.classes[first_unassigned]
+                instance_classes.append(curr_instance_class)
+                curr_instance_mask = np.zeros(len(self.points), dtype=np.bool)
+                instance_masks.append(curr_instance_mask)
+
+            nearby_points = search_tree.query_radius(points_to_search, dist_thresh)
+            # flattened_ind_it = (nearby_ind for nearby_ind_arr in nearby_points for nearby_ind in nearby_ind_arr)
+            points_to_search = []
+            for nearby_arr in nearby_points:
+                mask = np.logical_and(self.classes[nearby_arr] == curr_instance_class, unassigned_points[nearby_arr])
+                nearby_arr = nearby_arr[mask]
+                curr_instance_mask[nearby_arr] = True
+                unassigned_points[nearby_arr] = False
+                points_to_search.extend(self.points[nearby_arr])
+        return np.array(instance_masks), np.array(instance_classes)
 
     def get_search_tree(self, search_tree_type='KD'):
         if self.search_tree is None:
@@ -34,6 +64,17 @@ class Seg3D(Seg):
             confidence_scores = None
         return Seg3D(gt_seg.points[mapping], classes, instance_masks, gt_seg.instance_classes,
                      gt_seg.class_map, confidence_scores), dists
+
+    def get_mapped_seg(self, label_map, est_seg):
+        point_mapping = est_seg.get_mapping_to(self)[1].flatten()
+
+        classes = label_map[self.classes][point_mapping]
+        instance_classes = label_map[self.instance_classes]
+        points = self.points[point_mapping]
+        confidence_scores = self.confidence_scores[point_mapping]
+        instance_masks = self.instance_masks[:, point_mapping]
+
+        return Seg3D(points, classes, instance_masks, instance_classes, confidence_scores)
 
     @staticmethod
     def load_points_and_labels_from_ply(ply_filename, load_conf=True, load_ids=True):
