@@ -3,6 +3,7 @@ import os
 from segtester import logger
 import csv
 import open3d as o3d
+from segtester.types.seg3d import Seg3D
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -10,7 +11,7 @@ if TYPE_CHECKING:
 
 
 class ResultsScene:
-    def __init__(self, id, alg_name, base_path, label_map, inv_label_map):
+    def __init__(self, id, alg_name, base_path, label_map_id_col):
         self.id = id
         self.alg_name = alg_name
         self.base_path = base_path
@@ -23,8 +24,7 @@ class ResultsScene:
 
         self.cashed_prob_data = None
 
-        self.label_map = label_map
-        self.inv_label_map = inv_label_map
+        self.label_map_id_col = label_map_id_col
 
     def get_pcd(self):
         return o3d.io.read_point_cloud(self.mesh_path)
@@ -45,12 +45,9 @@ class ResultsScene:
         probs = self.get_probs()
         labels = np.argmax(probs, axis=1)
         mask_labels = labels[:, None] == np.arange(probs.shape[1])[None]
-
+        #TODO i think mask labels was intended to be the labels of each mask. Fix me up later...
+        assert False
         return self.get_instances(), mask_labels, self.get_pcd()
-
-    def get_converted_labels(self, mask_labels):
-        labels = np.argmax(mask_labels, axis=1)
-        return self.label_map[labels]
 
     def get_pose_path(self):
         from evo.core.trajectory import PosePath3D
@@ -60,6 +57,17 @@ class ResultsScene:
         poses_np = np.load(self.poses_path)["pose_array"]
         poses = [it.reshape(4,4) for it in poses_np]
         return Trajectory(PosePath3D(poses_se3=poses))
+
+    def get_seg_3d(self, label_map):
+        prob_mtx = self.get_probs()
+        labels = np.argmax(prob_mtx, axis=1)
+        probs = prob_mtx[np.arange(len(prob_mtx)), labels]
+        points = np.array(self.get_pcd().points)
+
+        return Seg3D(
+            points, labels, None, None, probs
+        )
+
 
 
 class ResultsDataset:
@@ -81,46 +89,9 @@ class ResultsDataset:
         with open(config.file_map, mode='r') as csv_file:
             csv_reader = csv.reader(csv_file)
             alg_names = next(csv_reader)
-            from_label_rows = next(csv_reader)
-            to_label_id, to_label_name = next(csv_reader)
+            from_label_cols = next(csv_reader)
             scene_ids = next(csv_reader)
-
-        hold_label_maps = {k: {} for k in alg_names}
-        hold_label_names = []
-        hold_inv_label_maps = {k: {} for k in alg_names}
-        self.max_to_label = 0
-        with open(config.label_map, mode='r') as csv_file:
-            reader = csv.DictReader(csv_file)
-            for row in reader:
-                hold_label_names.append(row[to_label_name])
-                for alg_name, from_label_row in zip(alg_names, from_label_rows):
-                    key = int(row[from_label_row]) if row[from_label_row] != '' else 0
-                    val = int(row[to_label_id]) if row[to_label_id] != '' and row[from_label_row] != '' else 0
-                    self.max_to_label = max(self.max_to_label, val)
-                    if row[from_label_row] not in hold_label_maps[alg_name]:  # take the first one matching
-                        hold_label_maps[alg_name][key] = val
-
-                    key = int(row[from_label_row]) if row[to_label_id] != '' and row[from_label_row] != '' else 0
-                    val = int(row[to_label_id]) if row[from_label_row] != '' else 0
-                    if row[to_label_name] not in hold_inv_label_maps[alg_name]:
-                        hold_inv_label_maps[alg_name][key] = val
-
-        self.label_maps = {}
-        self.label_names = np.array(hold_label_names)
-        self.inv_label_maps = {}
-
-        for alg in alg_names:
-            hold_from_label_map = np.array(list(hold_label_maps[alg].keys()))
-            hold_to_label_map = np.array(list(hold_label_maps[alg].values()))
-            label_map = np.zeros(hold_from_label_map.max()+1, dtype=np.uint16)
-            label_map[hold_from_label_map] = hold_to_label_map
-            self.label_maps[alg] = label_map
-
-            hold_from_label_map = np.array(list(hold_inv_label_maps[alg].keys()))
-            hold_to_label_map = np.array(list(hold_inv_label_maps[alg].values()))
-            label_map = np.zeros(hold_from_label_map.max()+1, dtype=np.uint16)
-            label_map[hold_from_label_map] = hold_to_label_map
-            self.inv_label_maps[alg] = label_map
+        from_label_cols_dict = {k: v for (k, v) in zip(alg_names, from_label_cols)}
 
         self.scenes = []
         for alg_name, scene_id in itertools.product(alg_names, scene_ids):
@@ -129,6 +100,5 @@ class ResultsDataset:
                                                    scene_id=scene_id,
                                                    alg_name=alg_name)
             if os.path.isdir(scene_path):
-                self.scenes.append(ResultsScene(scene_id, alg_name, scene_path, self.label_maps[alg_name],
-                                                self.inv_label_maps[alg_name]))
+                self.scenes.append(ResultsScene(scene_id, alg_name, scene_path, from_label_cols_dict[alg_name]))
         logger.debug(f"Successfully found {len(self.scenes)} scenes.")

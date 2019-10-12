@@ -36,7 +36,7 @@ class TestResult:
         self.precision_recall_iou: np.array = kwargs["precision_recall_iou"]
 
 
-class Segmentation3DAssessment:
+class Segmentation2DReprojAssessment:
     def __init__(self, conf: 'Config'):
         self.conf = conf
         self.label_map = self.conf.label_map.get_label_map()
@@ -58,16 +58,16 @@ class Segmentation3DAssessment:
         for scene in tqdm(scenes_sorted_by_id, desc="scene"):
             try:
 
-                save_path = self.conf.format_string_with_meta(f"{base_result_path}/{self.conf.save_path}", **{
-                    "dataset_id": est_dataset_conf.id, "scene_id": scene.id,
-                    "alg_name": scene.alg_name,
-                })
-
-                if self.conf.skip_existing and os.path.exists(f"{save_path}"):
-                    logger.warn(f"When getting results for 3d segmentation of {est_dataset_conf.id}->"
-                                f"{scene.id}->{scene.alg_name}, "
-                                f"found existing path {save_path}.\n Skipping this scene...")
-                    continue
+                # save_path = self.conf.format_string_with_meta(f"{base_result_path}/{self.conf.save_path}", **{
+                #     "dataset_id": est_dataset_conf.id, "scene_id": scene.id,
+                #     "alg_name": scene.alg_name,
+                # })
+                #
+                # if self.conf.skip_existing and os.path.exists(f"{save_path}"):
+                #     logger.warn(f"When getting results for 3d segmentation of {est_dataset_conf.id}->"
+                #                 f"{scene.id}->{scene.alg_name}, "
+                #                 f"found existing path {save_path}.\n Skipping this scene...")
+                #     continue
 
                 if curr_gt_scene_id != scene.id:
                     curr_gt_scene_id = scene.id
@@ -77,34 +77,8 @@ class Segmentation3DAssessment:
                     else:
                         curr_gt_scene_id = None
                         raise Exception(f"Could not find gt scene for scene id {curr_gt_scene_id}")
-                    seg_3d_gt = curr_gt_scene.get_seg_3d(self.label_map)
                     gt_label_map = self.label_map.get_label_map(curr_gt_scene.label_map_id_col,
                                                                 self.conf.label_map_dest_col)
-
-                seg_3d_est = scene.get_seg_3d(self.label_map)
-
-                est_label_map = self.label_map.get_label_map(scene.label_map_id_col,
-                                                             self.conf.label_map_dest_col)
-                seg_3d_est_labels = est_label_map[seg_3d_est.classes]
-
-                mapped_gt_seg = seg_3d_gt.get_mapped_seg(gt_label_map, seg_3d_est)
-
-                res_class = Segmentation3DAssessment.get_results(seg_3d_est_labels,
-                                                                 mapped_gt_seg.classes, all_class_ids)
-                est_labels, gt_labels, _ = seg_3d_est.get_segmentation_labels(mapped_gt_seg, match_classes=True)
-                res_inst = Segmentation3DAssessment.get_results(est_labels, gt_labels)
-
-                precision, recall, test_probs, iou_threshs = \
-                    smet.precision_recall(est_labels, gt_labels, seg_3d_est.confidence_scores)
-
-                est_labels, gt_labels, _ = seg_3d_est.get_segmentation_labels(mapped_gt_seg, match_classes=False)
-                res_seg = Segmentation3DAssessment.get_results(est_labels, gt_labels)
-
-                np.savez_compressed(f"{save_path}/res_class", **res_class)
-                np.savez_compressed(f"{save_path}/res_class", **res_inst)
-                np.savez_compressed(f"{save_path}/res_class", **res_seg)
-                np.savez_compressed(f"{save_path}/pvr", precision=precision, recall=recall,
-                                    test_probs=test_probs, iou_threshs=iou_threshs)
 
             except KeyboardInterrupt as e:
                 try:

@@ -39,8 +39,8 @@ def fiou(est_labels, gt_labels, all_labels=None):
     gt_eq_label = all_labels[:, None] == gt_labels[None]
     est_eq_label = all_labels[:, None] == est_labels[None]
     t_i = np.count_nonzero(gt_eq_label, axis=1)
-    return (t_i * np.count_nonzero(np.logical_and(gt_eq_label, est_eq_label), axis=1) /
-            np.count_nonzero(np.logical_or(gt_eq_label, est_eq_label), axis=1)).sum() / t_i.sum()
+    return np.nansum(t_i * np.count_nonzero(np.logical_and(gt_eq_label, est_eq_label), axis=1) /
+                     np.count_nonzero(np.logical_or(gt_eq_label, est_eq_label), axis=1)) / t_i.sum()
 
 
 def precision_recall(est_labels, gt_labels, est_probs, test_probs=None, iou_threshs=None):

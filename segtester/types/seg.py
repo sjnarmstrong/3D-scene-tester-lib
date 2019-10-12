@@ -2,19 +2,17 @@ import numpy as np
 
 
 class Seg:
-    def __init__(self, classes, instance_masks, instance_classes, class_map, confidence_scores=None):
+    def __init__(self, classes, instance_masks, instance_classes, confidence_scores=None):
         """
 
         :param classes: (N) -> int class_id
         :param instance_masks: (I, N) -> bool contains
         :param instance_classes: (I) -> int class_id
-        :param class_map: (C) -> str class_name
         :param confidence_scores: None | (N) -> float confidence
         """
         self.classes = classes
         self.instance_masks = instance_masks
         self.instance_classes = instance_classes
-        self.class_map = class_map
         self.confidence_scores = confidence_scores if confidence_scores is not None else np.ones(len(self.classes))
 
     def get_instance_ious(self, ground_truth):
