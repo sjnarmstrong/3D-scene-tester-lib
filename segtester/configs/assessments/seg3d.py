@@ -16,6 +16,7 @@ class Segmentation3d(BCNF.ConfigParser):
         self.label_map_dest_col: str = BCNF.RequiredMember()
         self.skip_existing = BCNF.OptionalMember(default_ret=False)
         self.save_path = BCNF.OptionalMember(default_ret="{dataset_id}/{scene_id}/{alg_name}/seg/seg3d")
+        self.point_dist_thresh = BCNF.OptionalMember(default_ret=0.5)
 
     def __call__(self, base_result_path, *args, **kwargs):
         from segtester.assessments.segmentation3d import Segmentation3DAssessment

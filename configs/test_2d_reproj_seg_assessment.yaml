@@ -3,7 +3,7 @@ name: Base Test
 description: This test serves as an example to how a config file may look
 base_result_path: "/mnt/1C562D12562CEDE8/RESULTS/TestNoDate"
 tests:
-- id: Segmentation3d
+- id: Segmentation2dReproj
   est_dataset:
     file_map: "/mnt/1C562D12562CEDE8/RESULTS/scannet_results_conf.csv"
     dataset_id: "SCANNET"

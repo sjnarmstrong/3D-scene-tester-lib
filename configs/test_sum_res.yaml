@@ -3,14 +3,12 @@ name: Base Test
 description: This test serves as an example to how a config file may look
 base_result_path: "/mnt/1C562D12562CEDE8/RESULTS/TestNoDate"
 tests:
-- id: Segmentation3d
+- id: SummarizeRes
   est_dataset:
     file_map: "/mnt/1C562D12562CEDE8/RESULTS/scannet_results_conf.csv"
     dataset_id: "SCANNET"
-  gt_dataset:
-    id: "SCANNET"
-    file_map: "/mnt/1C562D12562CEDE8/DATASETS/csv_conf/scenenn_mock_hd.csv"
   label_map:
     csv_path: "/mnt/1C562D12562CEDE8/RESULTS/label_map.csv"
   label_map_dest_col: "nyu40id"
+  label_map_dest_name_col: "nyu40class"
 meta: {}

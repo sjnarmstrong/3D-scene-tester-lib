@@ -68,8 +68,6 @@ class ResultsScene:
             points, labels, None, None, probs
         )
 
-
-
 class ResultsDataset:
     def __init__(self, config: 'ResultsConfig'):
         import itertools
@@ -94,6 +92,7 @@ class ResultsDataset:
         from_label_cols_dict = {k: v for (k, v) in zip(alg_names, from_label_cols)}
 
         self.scenes = []
+        self.alg_names, self.scene_ids = alg_names, scene_ids
         for alg_name, scene_id in itertools.product(alg_names, scene_ids):
             scene_path = config.safe_format_string(f"{base_result_path}/{config.load_path}",
                                                    dataset_id=config.dataset_id,
