@@ -67,13 +67,33 @@ class Seg:
 
     def get_segmentation_labels(self, ground_truth, **kwargs):
         labels_gt = np.zeros(ground_truth.classes.size, dtype=np.uint32)
+        i = 0
         for i, mask in enumerate(ground_truth.instance_masks):
             labels_gt[mask] = i + 1
 
         instance_map = self.get_instance_map(ground_truth, **kwargs)
         labels_p = np.zeros(self.classes.size, dtype=np.uint32)
+        # for mask_i, unassigned_i in zip(instance_map, unassigned_instances):
+        #     if unassigned_i:
+        #         labels_p[self.instance_masks[mask_i].flat] = i + 1
+        #     else:
+        #         i += 1
+        #         labels_p[mask_i] = i
+        # return labels_p, labels_gt, instance_map
         for i, mask in enumerate(self.instance_masks):
             labels_p[mask.flat] = instance_map[i] + 1
+
+        # from PIL import Image
+        # test_img_gt = np.zeros(self.image_shape +(3, ), dtype=np.uint8)
+        # test_img_pred = np.zeros(self.image_shape +(3, ), dtype=np.uint8)
+        # for i in range(instance_map.max()+1):
+        #     test_img_gt[:] = 0
+        #     test_img_gt[(labels_gt == i).reshape(self.image_shape[1], self.image_shape[0]).T] = [255, 0, 0]
+        #     Image.fromarray(test_img_gt).show()
+        #     test_img_pred[:] = 0
+        #     test_img_pred[(labels_p == i).reshape(self.image_shape[0], self.image_shape[1])] = [0, 255, 0]
+        #     Image.fromarray(test_img_pred).show()
+
         return labels_p, labels_gt, instance_map
 
     def get_class_labels(self, ground_truth, class_map=None):
@@ -82,3 +102,6 @@ class Seg:
         mapped_labels = class_map[self.classes]
         return mapped_labels.flatten(), ground_truth.classes.flatten()
 
+    def map_own_classes(self, label_map):
+        self.classes = label_map[self.classes]
+        self.instance_classes = label_map[self.instance_classes]

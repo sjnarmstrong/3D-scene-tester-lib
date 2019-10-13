@@ -3,14 +3,13 @@ from segtester.types.seg import Seg
 
 
 class Seg2D(Seg):
-    def __init__(self, classes, instance_masks, instance_classes, class_map, confidence_scores=None):
+    def __init__(self, classes, instance_masks, instance_classes, confidence_scores):
         self.image_shape = classes.shape
         super().__init__(
             classes.flatten(),
             instance_masks.reshape((instance_masks.shape[0], -1)),
             instance_classes,
-            class_map,
-            None if confidence_scores is None else confidence_scores.flatten()
+            confidence_scores,
         )
 
     @staticmethod
@@ -36,6 +35,19 @@ class Seg2D(Seg):
         unique_pairs = np.unique(label_instances.reshape(-1, 2), axis=0)
         unique_pairs = unique_pairs[np.sum(unique_pairs, axis=1) > 0]
         return np.equal(label_instances[:, :, None], unique_pairs).all(axis=3), unique_pairs
+
+    def vis_labels(self, labels_to_vis=None):
+        from PIL import Image
+        from matplotlib import pyplot as plt
+
+        cmap = plt.get_cmap("hsv")
+        if labels_to_vis is None:
+            labels_to_vis = self.classes
+        reshaped_labels = labels_to_vis.reshape(self.image_shape)
+        max_class = labels_to_vis.max()
+        vis_cmap = cmap((np.arange(max_class+1)-1)/max_class)
+        vis_cmap[0] = (0.3, 0.3, 0.3, 1)
+        Image.fromarray((vis_cmap[reshaped_labels][:, :, :3] * 255).astype(np.uint8)).show()
 
 
 if __name__ == "__main__":

@@ -59,7 +59,7 @@ class Segmentation3DAssessment:
             try:
 
                 save_path = self.conf.format_string_with_meta(f"{base_result_path}/{self.conf.save_path}", **{
-                    "dataset_id": est_dataset_conf.id, "scene_id": scene.id,
+                    "dataset_id": gt_dataset_conf.id, "scene_id": scene.id,
                     "alg_name": scene.alg_name,
                 })
 
@@ -80,48 +80,50 @@ class Segmentation3DAssessment:
                     seg_3d_gt = curr_gt_scene.get_seg_3d(self.label_map)
                     gt_label_map = self.label_map.get_label_map(curr_gt_scene.label_map_id_col,
                                                                 self.conf.label_map_dest_col)
+                    seg_3d_gt.map_own_classes(gt_label_map)
 
                 seg_3d_est = scene.get_seg_3d(self.label_map)
 
                 est_label_map = self.label_map.get_label_map(scene.label_map_id_col,
                                                              self.conf.label_map_dest_col)
-                seg_3d_est_labels = est_label_map[seg_3d_est.classes]
 
-                mapped_gt_seg = seg_3d_gt.get_mapped_seg(gt_label_map, seg_3d_est)
+                mapped_gt_seg, point_dists = seg_3d_gt.get_mapped_seg(seg_3d_est)
+                point_dist_mask = point_dists.flatten() < self.conf.point_dist_thresh
+                mapped_gt_seg = mapped_gt_seg.get_masked_seg(point_dist_mask)
 
-                res_class = Segmentation3DAssessment.get_results(seg_3d_est_labels,
+                seg_3d_est.map_own_classes(est_label_map)
+                seg_3d_est = seg_3d_est.get_masked_seg(point_dist_mask)
+
+                # pcd1 = seg_3d_est.get_labelled_pcd(max_label=42, point_offset=[10, 0, 0])
+                # mapped_gt_seg.vis_labels(max_label=42, other_pcd=[pcd1])
+
+                res_class = Segmentation3DAssessment.get_results(seg_3d_est.classes,
                                                                  mapped_gt_seg.classes, all_class_ids)
                 est_labels, gt_labels, _ = seg_3d_est.get_segmentation_labels(mapped_gt_seg, match_classes=True)
                 res_inst = Segmentation3DAssessment.get_results(est_labels, gt_labels)
 
                 precision, recall, test_probs, iou_threshs = \
-                    smet.precision_recall(est_labels, gt_labels, seg_3d_est.confidence_scores)
+                    smet.precision_recall(est_labels, gt_labels, seg_3d_est.confidence_scores,
+                                          test_probs=np.arange(-1e-6, 1.005, 5e-3))
 
                 est_labels, gt_labels, _ = seg_3d_est.get_segmentation_labels(mapped_gt_seg, match_classes=False)
                 res_seg = Segmentation3DAssessment.get_results(est_labels, gt_labels)
 
+                os.makedirs(save_path, exist_ok=True)
+                print(f"saving to: {save_path}")
+                np.savez_compressed(f"{save_path}/point_dists", point_dists=point_dists)
                 np.savez_compressed(f"{save_path}/res_class", **res_class)
-                np.savez_compressed(f"{save_path}/res_class", **res_inst)
-                np.savez_compressed(f"{save_path}/res_class", **res_seg)
+                np.savez_compressed(f"{save_path}/res_inst", **res_inst)
+                np.savez_compressed(f"{save_path}/res_seg", **res_seg)
                 np.savez_compressed(f"{save_path}/pvr", precision=precision, recall=recall,
                                     test_probs=test_probs, iou_threshs=iou_threshs)
 
-            except KeyboardInterrupt as e:
-                try:
-                    logger.error(f"Detected [ctrl+c]. Performing cleanup and then exiting...")
-                    #shutil.rmtree(save_path)
-                except Exception:
-                    pass
-                sys.exit(0)
             except Exception as e:
-                try:
-                    curr_gt_scene_id = None  # reload gt scene incase there is an error
-                    logger.error(f"Exception when performing 3d seg assessment on {est_dataset_conf.id}:{scene.id}. "
-                                 f"Skipping scene and moving on...")
-                    logger.error(e)
-                    #shutil.rmtree(save_path)
-                except Exception:
-                    pass
+
+                curr_gt_scene_id = None  # reload gt scene incase there is an error
+                logger.error(f"Exception when performing 3d seg assessment on {est_dataset_conf.id}:{scene.id}. "
+                             f"Skipping scene and moving on...")
+                logger.exception(e)
 
     @staticmethod
     def get_results(est_labels, gt_labels, class_ids=None):

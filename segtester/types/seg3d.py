@@ -62,19 +62,51 @@ class Seg3D(Seg):
             confidence_scores[gt_thresh] = 0
         else:
             confidence_scores = None
-        return Seg3D(gt_seg.points[mapping], classes, instance_masks, gt_seg.instance_classes,
-                     gt_seg.class_map, confidence_scores), dists
+        return Seg3D(gt_seg.points[mapping], classes, instance_masks, gt_seg.instance_classes, confidence_scores), dists
 
-    def get_mapped_seg(self, label_map, est_seg):
-        point_mapping = est_seg.get_mapping_to(self)[1].flatten()
+    def get_mapped_seg(self, est_seg):
+        point_dist, point_mapping = est_seg.get_mapping_to(self)
+        point_mapping = point_mapping.ravel()
 
-        classes = label_map[self.classes][point_mapping]
-        instance_classes = label_map[self.instance_classes]
+        classes = self.classes[point_mapping]
+        instance_classes = self.instance_classes.copy()
         points = self.points[point_mapping]
         confidence_scores = self.confidence_scores[point_mapping]
         instance_masks = self.instance_masks[:, point_mapping]
 
+        return Seg3D(points, classes, instance_masks, instance_classes, confidence_scores), point_dist
+
+    def get_masked_seg(self, mask):
+
+        classes = self.classes[mask]
+        instance_classes = self.instance_classes.copy()
+        points = self.points[mask]
+        confidence_scores = self.confidence_scores[mask]
+        instance_masks = self.instance_masks[:, mask]
+
         return Seg3D(points, classes, instance_masks, instance_classes, confidence_scores)
+
+    def get_labelled_pcd(self, labels_to_vis=None, max_label=None, point_offset=[0,0,0]):
+        import open3d as o3d
+        from matplotlib import pyplot as plt
+        cmap = plt.get_cmap("hsv")
+        if labels_to_vis is None:
+            labels_to_vis = self.classes
+        max_class = max_label if max_label is not None else labels_to_vis.max()
+
+        vis_cmap = cmap((np.arange(max_class+1)-1)/max_class)
+        vis_cmap[0] = (0.3, 0.3, 0.3, 1)
+
+        colors = vis_cmap[labels_to_vis][:, :3]
+
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(self.points+point_offset)
+        pcd.colors = o3d.utility.Vector3dVector(colors)
+        return pcd
+
+    def vis_labels(self, labels_to_vis=None, max_label=None, other_pcd=[]):
+        import open3d as o3d
+        o3d.visualization.draw_geometries([self.get_labelled_pcd(labels_to_vis, max_label)]+other_pcd)
 
     @staticmethod
     def load_points_and_labels_from_ply(ply_filename, load_conf=True, load_ids=True):
@@ -175,7 +207,7 @@ class Seg3D(Seg):
             labels[mask] = label_map[label]
             encoded_mask_labels.append(label_map[label])
         return Seg3D(
-            points, labels, instance_masks, np.array(encoded_mask_labels, dtype=np.uint16), label_map, conf
+            points, labels, instance_masks, np.array(encoded_mask_labels, dtype=np.uint16), conf
         )
 
 
