@@ -54,8 +54,14 @@ class ResultsScene:
         from segtester.types.odometry import Trajectory
         if self.poses_path is None:
             return None
-        poses_np = np.load(self.poses_path)["pose_array"]
-        poses = [it.reshape(4,4) for it in poses_np]
+        np_pose_file = np.load(self.poses_path)
+        poses_np = np_pose_file["pose_array"].reshape(-1, 4, 4)
+        if "init_cam_to_world" in np_pose_file:
+            init_cam_to_world = np_pose_file["init_cam_to_world"]
+            if poses_np[0] != init_cam_to_world:
+                poses_np = init_cam_to_world@poses_np
+                #TODO test me properly
+        poses = [it.reshape(4, 4) for it in poses_np]
         return Trajectory(PosePath3D(poses_se3=poses))
 
     def get_seg_3d(self, label_map):
@@ -67,6 +73,7 @@ class ResultsScene:
         return Seg3D(
             points, labels, None, None, probs
         )
+
 
 class ResultsDataset:
     def __init__(self, config: 'ResultsConfig'):

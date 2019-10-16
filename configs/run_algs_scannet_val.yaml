@@ -5,6 +5,13 @@ base_result_path: "/mnt/1C562D12562CEDE8/RESULTS/ActualResults/20191008"
 tests:
   - id: ExecuteAlg
     alg:
+      id: MinkowskiEngine
+      weights_path: "/home/sholto/mnt/1C562D12562CEDE8/Repos/Uni/masters/algs/minkowski_runner/weights.pth"
+    dataset:
+      id: "SCANNET"
+      file_map: "/media/sholto/Datasets/datasets/scenenn_val_dataset.csv"
+  - id: ExecuteAlg
+    alg:
       id: 3DMV
       model_path: "/mnt/1C562D12562CEDE8/MODELS/3DMV/scannetv2/scannet5_model.pth"
       model2d_orig_path: "/mnt/1C562D12562CEDE8/MODELS/3DMV/scannetv2/2d_scannet.pth"
@@ -13,14 +20,7 @@ tests:
       voxel_size: 0.048
     dataset:
       id: "SCANNET"
-      file_map: "/media/sholto/Datasets/scenenn_val_dataset.csv"
-  - id: ExecuteAlg
-    alg:
-      id: MinkowskiEngine
-      weights_path: "/home/sholto/mnt/1C562D12562CEDE8/Repos/Uni/masters/algs/minkowski_runner/weights.pth"
-    dataset:
-      id: "SCANNET"
-      file_map: "/media/sholto/Datasets/scenenn_val_dataset.csv"
+      file_map: "/media/sholto/Datasets/datasets/scenenn_val_dataset.csv"
   - id: ExecuteAlg
     alg:
       id: SemanticFusion
@@ -31,5 +31,5 @@ tests:
       cnn_skip_frames: 10
     dataset:
       id: "SCANNET"
-      file_map: "/media/sholto/Datasets/scenenn_val_dataset.csv"
+      file_map: "/media/sholto/Datasets/datasets/scenenn_val_dataset.csv"
 meta: {}

@@ -6,7 +6,6 @@ class ExecuteSemanticFusionConfig(BCNF.ConfigParser):
         super().__init__()
         self.id = BCNF.OptionalMember()
         self.cpu_only = BCNF.OptionalMember(default_ret=False)
-        self.save_path = BCNF.OptionalMember(default_ret="{dataset_id}/{scene_id}/{alg_name}/")
         self.cnn_skip_frames = BCNF.OptionalMember(default_ret=10)
         self.use_crf = BCNF.OptionalMember(default_ret=False)
         self.caffe_use_cpu = BCNF.OptionalMember(default_ret=False)

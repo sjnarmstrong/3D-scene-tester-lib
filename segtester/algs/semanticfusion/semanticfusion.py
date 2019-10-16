@@ -99,6 +99,7 @@ class ExecuteSemanticFusion:
                     rgb = align_images(rgb, width, height)
                     rgb, depth = rgb.flatten(), depth.flatten()
 
+                    # Semantic fusion expects a depth scale of 1000
                     if scene.get_depth_scale() != 1000:
                         depth = np.round(depth.astype(np.float) * 1000 / scene.get_depth_scale()).astype(np.uint16)
 
@@ -143,7 +144,7 @@ class ExecuteSemanticFusion:
                 pred_pcd.normals = o3d.utility.Vector3dVector(xyz[:, 3:])
                 o3d.io.write_point_cloud(f"{save_path}/pcd.ply", pred_pcd)
                 np.savez_compressed(f"{save_path}/probs", likelihoods=pr)
-                np.savez_compressed(f"{save_path}/poses", pose_array=pose_array)
+                np.savez_compressed(f"{save_path}/poses", pose_array=pose_array, init_cam_to_world=init_cam_to_world)
 
             except KeyboardInterrupt as e:
                 logger.error(f"Detected [ctrl+c]. Performing cleanup and then exiting...")

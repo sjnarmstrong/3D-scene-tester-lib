@@ -1,0 +1,3 @@
+[submodule "tester-lib/3rdparty/semanticfusion"]
+	path = tester-lib/3rdparty/semanticfusion
+	url = git@gitlab.com:SceneUnderstandingDevel/semanticfusion.git
