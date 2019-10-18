@@ -7,7 +7,66 @@ import numpy as np
 from bisect import bisect_right
 
 
+def create_voxels_seen_by_image(depth_imgs, camera_to_worlds, vox_dims, occ_start, voxel_size, intrinsic, device=None):
+    if device is None:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    intrinsic = torch.from_numpy(intrinsic).to(dtype=torch.double, device=device)
+
+    img_shape = depth_imgs[0].shape
+
+    xyz_cam = torch.stack(
+        torch.meshgrid([torch.arange(0, img_shape[1]),
+                        torch.arange(0, img_shape[0]),
+                        torch.tensor(1),
+                        torch.tensor(1)])
+    ).reshape(4, -1).to(dtype=torch.double, device=device)
+    xyz_cam[: 2] = (xyz_cam[: 2] - intrinsic[:2, 2, None]) / intrinsic[[0, 1], [0, 1], None]
+
+    res = torch.zeros(len(depth_imgs), *vox_dims, dtype=torch.bool, device=device)
+    vox_l_bound = torch.tensor([[0], [0], [0]], dtype=torch.long, device=device)
+    vox_u_bound = torch.tensor([[vox_dims[0]], [vox_dims[1]], [vox_dims[2]]], dtype=torch.long, device=device)
+    for i, (d_img, camera_to_world) in tqdm(enumerate(zip(depth_imgs, camera_to_worlds)),
+                                            desc="Creating image viewpoint",
+                                            total=len(depth_imgs)):
+        p = xyz_cam * d_img.T.to(dtype=torch.double, device=device).flatten()
+        p[3] = 1
+        mask = (p[2] >= 0.4) * (p[2] <= 4.0)
+        p = camera_to_world.to(dtype=torch.double, device=device) @ p[:, mask]
+        inds = torch.unique(torch.round((p[:3] - occ_start[:, None]) / voxel_size).to(torch.long), dim=1)
+        in_bounds_mask = (inds >= vox_l_bound).min(dim=0)[0] * (inds < vox_u_bound).min(dim=0)[0]
+        inds = inds[:, in_bounds_mask]
+        res[i, inds[0], inds[1], inds[2]] = True
+    return res
+
+
 def create_image_viewpoints_grid(depth_imgs, camera_to_worlds, vox_dims, occ_start, voxel_size, intrinsic, device=None):
+    image_viewpoints = create_voxels_seen_by_image(depth_imgs, camera_to_worlds, vox_dims, occ_start, voxel_size, intrinsic, device)
+    voxels_not_seen = torch.ones(1, *vox_dims, dtype=torch.bool, device=device)
+    vox_height, vox_width = vox_dims[:2]
+    viewpoint_image_inds = list(range(len(depth_imgs)))
+
+    res = [[[] for i in range(vox_width)] for j in range(vox_height)]
+
+    pbar = tqdm(desc="Greedy Search indicies", total=len(depth_imgs))
+    while len(viewpoint_image_inds) > 0:
+        counts = (image_viewpoints * voxels_not_seen).sum(dim=(1, 2, 3))
+        max_val, max_ind = counts.max(dim=0)
+        if max_val <= 0:
+            voxels_not_seen[:] = 1
+            counts = (image_viewpoints * voxels_not_seen).sum(dim=(1, 2, 3))
+            max_val, max_ind = counts.max(dim=0)
+        voxels_not_seen[0] *= image_viewpoints[max_ind].bitwise_not()
+        inds = torch.where(image_viewpoints[max_ind].sum(dim=2))
+        for i, j in zip(*inds):
+            res[i][j].append(viewpoint_image_inds[max_ind])
+        del viewpoint_image_inds[max_ind]
+        image_viewpoints = torch.cat([image_viewpoints[:max_ind], image_viewpoints[max_ind+1:]])
+        pbar.update(1)
+    return res
+
+
+def create_image_viewpoints_grid_last_working(depth_imgs, camera_to_worlds, vox_dims, occ_start, voxel_size, intrinsic, device=None):
     if device is None:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 

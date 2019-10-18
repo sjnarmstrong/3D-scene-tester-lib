@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from segtester.configs.runnable.visualisepredictions import VisualisePredictionsConfig, ResultsConfig
 
 
-def custom_draw_geometry_with_camera_trajectory(pcd, output_path, colors, text_labels):
+def custom_draw_geometry_with_camera_trajectory(pcd, output_path, colors, text_labels, pause_on_scene):
     custom_draw_geometry_with_camera_trajectory.index = -1
     # intrinsic = o3d.camera.PinholeCameraIntrinsic(1920, 1080, 935.307, 935.307, 959.5, 539.5)
 
@@ -95,7 +95,8 @@ def custom_draw_geometry_with_camera_trajectory(pcd, output_path, colors, text_l
     # vis.get_render_option().load_from_json("../../TestData/renderoption.json")
     vis.register_animation_callback(move_forward)
     vis.run()
-    vis.destroy_window()
+    if not pause_on_scene:
+        vis.destroy_window()
 
 
 class VisualisePredictions:
@@ -150,7 +151,7 @@ class VisualisePredictions:
                 pcd.colors = o3d.utility.Vector3dVector(colors)
                 print(f"{scene.alg_name} -- {scene.id}")
                 # o3d.visualization.draw_geometries([pcd])
-                custom_draw_geometry_with_camera_trajectory(pcd, save_path, unique_colors, unique_label_names)
+                custom_draw_geometry_with_camera_trajectory(pcd, save_path, unique_colors, unique_label_names, self.conf.pause_on_scene)
                 # o3d.visualization.draw_geometries_with_custom_animation([pcd], custom_draw_geometry_with_camera_trajectory)
                 break
 

@@ -14,6 +14,7 @@ class VisualisePredictionsConfig(BCNF.ConfigParser):
         self.label_map_dest_col: str = BCNF.RequiredMember()
         self.label_map_name_col: str = BCNF.RequiredMember()
         self.skip_existing = BCNF.OptionalMember(default_ret=False)
+        self.pause_on_scene = BCNF.OptionalMember(default_ret=False)
         self.save_path = BCNF.OptionalMember(default_ret="{dataset_id}/{scene_id}/{alg_name}/seg/vis")
 
     def __call__(self, base_result_path, *args, **kwargs):

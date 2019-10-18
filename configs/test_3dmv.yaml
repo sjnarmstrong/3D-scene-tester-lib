@@ -11,6 +11,7 @@ tests:
     process_nth_frame: 5
     num_nearest_images: 4
     voxel_size: 0.048
+    skip_existing: False
   dataset:
     id: "SCANNET"
     file_map: "/mnt/1C562D12562CEDE8/DATASETS/csv_conf/scenenn_mock_hd.csv"

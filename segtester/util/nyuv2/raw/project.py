@@ -17,3 +17,8 @@ def depth_rel_to_depth_abs(depth_rel):
     depth_abs = DEPTH_PARAM_1 / (DEPTH_PARAM_2 - depth_rel)
 
     return np.clip(depth_abs, 0, MAX_DEPTH)
+
+
+# depth_abs = DEPTH_PARAM_1 / (DEPTH_PARAM_2 - depth_rel)
+# (DEPTH_PARAM_2 - depth_rel) = DEPTH_PARAM_1 / depth_abs
+# depth_rel = DEPTH_PARAM_2 - (DEPTH_PARAM_1 / depth_abs)

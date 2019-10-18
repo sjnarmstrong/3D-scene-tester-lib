@@ -149,6 +149,7 @@ class Execute3DMV:
         with torch.no_grad():
             for scene in tqdm(dataset.scenes, desc="scene"):
                 try:
+                    logger.info(f"Processing {self.conf.alg_name} on scene {scene.id}...")
 
                     save_path = self.conf.format_string_with_meta(f"{base_result_path}/{self.conf.save_path}", **{
                         "dataset_id": dataset_conf.id, "scene_id": scene.id,
