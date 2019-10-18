@@ -109,7 +109,7 @@ class ScannetScene(Scene):
         poses = [image.camera_to_world for image in sens_data.get_image_generator()]
         return Trajectory(PosePath3D(poses_se3=poses))
 
-    def get_labelled_reproj_seg3d(self, depth_min=0.001, depth_max=50.0):
+    def get_labelled_reproj_seg3d(self, depth_min=0.001, depth_max=50.0, predicted_pose=None):
         from zipfile import ZipFile
         import imageio
 

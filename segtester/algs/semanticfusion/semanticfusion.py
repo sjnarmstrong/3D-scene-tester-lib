@@ -101,7 +101,10 @@ class ExecuteSemanticFusion:
 
                     # Semantic fusion expects a depth scale of 1000
                     if scene.get_depth_scale() != 1000:
-                        depth = np.round(depth.astype(np.float) * 1000 / scene.get_depth_scale()).astype(np.uint16)
+                       depth = np.round(depth.astype(np.float) * 1000 / scene.get_depth_scale()).astype(np.uint16)
+                    # depth = 1092.5 - (351.3 * scene.get_depth_scale() / depth.astype(np.float))
+                    # depth[np.isnan(depth)] = 65535
+                    # depth = np.round(depth).astype(np.uint16)
 
                     # convert timestamp format from python to one of NYu
                     if self.conf.use_gt_pose:

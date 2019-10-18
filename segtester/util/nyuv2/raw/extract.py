@@ -34,11 +34,15 @@ class RawDatasetScene:
         with self.zip.open(self.frames[ind][1]) as depth_file:
             return read_ppm(depth_file)
 
+    def get_timestamp(self, ind):
+        return self.frames[ind][2]
+
     def load_depth_image(self, ind):
         return Image.fromarray(self.load_depth_image_np(ind), mode='I')
 
     def load_color_image(self, ind):
         return Image.fromarray(self.load_color_image_np(ind), mode='RGB')
+
 
 class RawDatasetArchive:
     """Loads a zip file containing the raw dataset and
@@ -47,14 +51,15 @@ class RawDatasetArchive:
 
     def __init__(self, zip_path):
         self.zip = ZipFile(zip_path)
-        self.scene_frames = [(k, synchronise_frames(frames)) for k, frames in
-                             split_namelist_into_scenes(self.zip.namelist()).items()]
+        self.scene_frames = {k: synchronise_frames(frames) for k, frames in
+                             split_namelist_into_scenes(self.zip.namelist()).items()}
 
     def __len__(self):
         return len(self.scene_frames)
 
     def __getitem__(self, idx):
-        return RawDatasetScene(self.zip, self.scene_frames[idx][0], self.scene_frames[idx][1])
+        return RawDatasetScene(self.zip, idx, self.scene_frames[idx])
+
 
 
 def split_namelist_into_scenes(name_list):
@@ -131,6 +136,6 @@ def synchronise_frames(frame_names):
 
             color_idx = color_idx + 1
 
-        frames.append((depth_img_name, color_img_names[color_idx]))
+        frames.append((depth_img_name, color_img_names[color_idx], depth_time))
 
     return frames

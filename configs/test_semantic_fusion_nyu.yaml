@@ -1,0 +1,18 @@
+---
+name: Base Test
+description: This test serves as an example to how a config file may look
+base_result_path: "/mnt/1C562D12562CEDE8/RESULTS/TestNoDate"
+tests:
+- id: ExecuteAlg
+  alg:
+    id: SemanticFusion
+    prototext_model_path: "/mnt/1C562D12562CEDE8/MODELS/semanticFusion/nyu_rgbd/inference.prototxt"
+    caffemodel_path: "/mnt/1C562D12562CEDE8/MODELS/semanticFusion/nyu_rgbd/inference.caffemodel"
+    class_colour_lookup_path: "/mnt/1C562D12562CEDE8/COMMONDEPS/semanticfusion2/class_colour_scheme.data"
+    caffe_use_cpu: true
+    cnn_skip_frames: 30
+  dataset:
+    id: "NYUv2"
+    zip_file_loc: "/media/sholto/Datasets/NYUv2/nyu_depth_v2_raw.zip"
+    gt_file_loc: "/mnt/1C562D12562CEDE8/DATASETS/nyu_depth_v2_labeled.mat"
+meta: {}

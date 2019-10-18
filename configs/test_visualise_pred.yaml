@@ -11,4 +11,5 @@ tests:
     csv_path: "/mnt/1C562D12562CEDE8/RESULTS/label_map.csv"
   label_map_dest_col: "nyu40id"
   label_map_name_col: "nyu40class"
+  pause_on_scene: True
 meta: {}
