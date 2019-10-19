@@ -31,10 +31,14 @@ class NYUv2Scene(Scene):
 
     def get_rgb_depth_image_it(self):
         for frame_ind in range(len(self.raw_scene)):
-            np_color_img = self.raw_scene.load_color_image_np(frame_ind)
-            np_depth_img = (depth_rel_to_depth_abs(self.raw_scene.load_depth_image_np(frame_ind))*1000)\
-                .astype(np.uint16)
-            yield np_color_img, np_depth_img, np.eye(4), self.raw_scene.get_timestamp(frame_ind), frame_ind
+            try:
+                np_color_img = self.raw_scene.load_color_image_np(frame_ind)
+                np_depth_img = (depth_rel_to_depth_abs(self.raw_scene.load_depth_image_np(frame_ind))*1000)\
+                    .astype(np.uint16)
+                yield np_color_img, np_depth_img, np.eye(4), self.raw_scene.get_timestamp(frame_ind), frame_ind
+            except ValueError:
+                # Last image often not in correct format (missing 2 channels)??? just skipping it
+                pass
 
     def get_depth_position_it(self):
         raise NotImplementedError()
@@ -156,11 +160,14 @@ class NYUv2Dataset(Dataset):
             depth_frame_names = [f[frame][()].tobytes().decode('utf16') for frame in f.get('rawDepthFilenames')[0]]
             color_frame_names = [f[frame][()].tobytes().decode('utf16') for frame in f.get('rawRgbFilenames')[0]]
             scene_names = [f[frame][()].tobytes().decode('utf16') for frame in f.get('scenes')[0]]
-            unique_scenes = set(scene_names)
+            unique_scenes = sorted(set(scene_names))
             gt_scene_name_mapping = {k: [] for k in unique_scenes}
             for scene_name, depth_frame_name, color_frame_name in zip(scene_names, depth_frame_names, color_frame_names):
                 gt_scene_name_mapping[scene_name].append((depth_frame_name, color_frame_name))
 
         # Note some scenes do not seem to have raw datasets. Todo check in parts
-        self.scenes = [NYUv2Scene(k, self.raw_dataset_archive[str(k)], gt_scene_name_mapping[k], config.gt_file_loc)
-                       for k in unique_scenes if k in self.raw_dataset_archive.scene_frames]
+        self.scenes = []
+        for k in unique_scenes:
+            if k in self.raw_dataset_archive.scene_frames:
+                scene = NYUv2Scene(k, self.raw_dataset_archive[str(k)], gt_scene_name_mapping[k], config.gt_file_loc)
+                self.scenes.append(scene)
