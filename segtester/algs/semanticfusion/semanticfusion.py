@@ -61,6 +61,7 @@ class ExecuteSemanticFusion:
         dataset: Dataset = dataset_conf.get_dataset()
         for scene in tqdm(dataset.scenes, desc="scene"):
             try:
+                logger.info(f"Processing {self.conf.alg_name} on scene {scene.id}...")
 
                 save_path = self.conf.format_string_with_meta(f"{base_result_path}/{self.conf.save_path}", **{
                     "dataset_id": dataset_conf.id, "scene_id": scene.id,
@@ -157,9 +158,9 @@ class ExecuteSemanticFusion:
                     pass
                 sys.exit(0)
             except Exception as e:
-                logger.error(f"Exception when running {self.conf.alg_name} on {dataset_conf.id}:{scene.id}. "
-                             f"Skipping scene and moving on...")
-                logger.error(str(e))
+                logger.exception(f"Exception when running {self.conf.alg_name} on {dataset_conf.id}:{scene.id}. "
+                                 f"Skipping scene and moving on...")
+                logger.exception(str(e))
                 try:
                     shutil.rmtree(save_path)
                 except Exception:
