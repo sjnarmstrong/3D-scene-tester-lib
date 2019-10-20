@@ -8,16 +8,21 @@ class CSVLabelMap:
 
     def get_label_text(self, id_col_name, text_col_name, default_value='object', default_key=0):
         max_from_label = 0
-        label_map = {default_key: default_value}
+        label_map = {}
+        default_set = False
         with open(self.csv_path, mode='r') as csv_file:
             reader = csv.DictReader(csv_file)
             for row in reader:
+                if str(default_key) == row[id_col_name]:
+                    # print("Default value explicitly set. Not sure what this does")
+                    default_set = True
                 key = int(row[id_col_name]) if row[id_col_name] != '' else default_key
                 val = row[text_col_name]
                 max_from_label = max(max_from_label, key)
                 if key not in label_map:  # take the first one matching
                     label_map[key] = val
-
+        if not default_set:
+            label_map[default_key] = default_value
         labels = np.array(list(label_map.values()))
         np_label_map = np.repeat(np.array(default_value, dtype=labels.dtype), max_from_label+1)
         np_label_map[list(label_map.keys())] = labels

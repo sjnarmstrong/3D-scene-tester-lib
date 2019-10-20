@@ -199,6 +199,11 @@ class ScannetScene(Scene):
             if lbl_test in text_map:
                 encoded_mask_labels.append(text_map[lbl_test])
                 continue
+            lbl_test = lbl.replace("starbucks ", "")
+            if lbl_test in text_map:
+                encoded_mask_labels.append(text_map[lbl_test])
+                continue
+
             closest_matches = difflib.get_close_matches(lbl, list(text_map.keys()), 1)
             assert len(closest_matches) > 0, f"Could not file label: {lbl} in {text_map}"
             encoded_mask_labels.append(text_map[closest_matches[0]])

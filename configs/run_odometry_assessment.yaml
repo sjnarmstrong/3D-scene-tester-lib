@@ -1,0 +1,14 @@
+---
+name: Base Test
+description: This test serves as an example to how a config file may look
+base_result_path: "/media/sholto/Datasets/results/ActualResults/20191008"
+tests:
+- id: OdometryAssessment
+  gt_dataset:
+    id: "SCANNET"
+    file_map: "/media/sholto/Datasets/scenenn_val_dataset.csv"
+  est_dataset:
+    file_map: "/media/sholto/Datasets/results/ActualResults/scannet_results_conf.csv"
+    label_map: "/media/sholto/Datasets/results/label_map.csv"
+    dataset_id: "SCANNET"
+meta: {}

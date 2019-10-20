@@ -1,7 +1,7 @@
 ---
 name: Run scannet validation dataset
 description: Run all the algorithms on the validation part of scannet
-base_result_path: "/mnt/1C562D12562CEDE8/RESULTS/ActualResults/20191008"
+base_result_path: "/mnt/1C562D12562CEDE8/RESULTS/ActualResults/CheckingMEOutputs"
 tests:
   - id: ExecuteAlg
     alg:
@@ -9,7 +9,7 @@ tests:
       weights_path: "/home/sholto/mnt/1C562D12562CEDE8/Repos/Uni/masters/algs/minkowski_runner/weights.pth"
     dataset:
       id: "SCANNET"
-      file_map: "/media/sholto/Datasets/datasets/scenenn_val_dataset.csv"
+      file_map: "/media/sholto/Datasets1/scenenn_val_dataset.csv"
   - id: ExecuteAlg
     alg:
       id: 3DMV

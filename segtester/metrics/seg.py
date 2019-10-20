@@ -45,7 +45,8 @@ def fiou(est_labels, gt_labels, all_labels=None):
 
 def precision_recall(est_labels, gt_labels, est_probs, test_probs=None, iou_threshs=None):
     if iou_threshs is None:
-        iou_threshs = [0.1, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.75, 0.8, 0.85, 0.9]
+        # iou_threshs = [0.1, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.75, 0.8, 0.85, 0.9]
+        iou_threshs = [0.5]
     iou_threshs = np.array(iou_threshs)[None]
     if test_probs is None:
         test_probs = list(sorted(np.append(-1e-6, est_probs)))
@@ -75,6 +76,38 @@ def precision_recall(est_labels, gt_labels, est_probs, test_probs=None, iou_thre
         recall[prob_ind] = tps / (tps + fns)
 
     return precision, recall, test_probs, iou_threshs
+
+
+# def precision_recall(est_labels, gt_labels, est_probs, test_probs=None):
+#     if test_probs is None:
+#         test_probs = list(sorted(np.append(-1e-6, est_probs)))
+#     all_labels = np.unique([est_labels, gt_labels])
+#     all_labels = all_labels[all_labels != 0]
+#
+#     all_tps = np.empty(len(test_probs), iou_threshs.shape[1]), dtype=np.float)
+#     all_fns = np.empty(len(test_probs), iou_threshs.shape[1]), dtype=np.float)
+#     all_fps = np.empty(len(test_probs), iou_threshs.shape[1]), dtype=np.float)
+#
+#     total_pos_gt = np.count_nonzero(np.unique(gt_labels))
+#     for prob_ind, prob_thresh in enumerate(test_probs):
+#         lt_mask = est_probs <= prob_thresh
+#         est_labels[lt_mask] = 0
+#
+#         if np.count_nonzero(est_labels) == 0:
+#             precision[prob_ind:] = 1
+#             recall[prob_ind:] = 0
+#             break
+#
+#         total_pos_est = np.count_nonzero(np.unique(est_labels))
+#         iou_val = np.nan_to_num(iou(est_labels, gt_labels, all_labels=all_labels))
+#         tps = np.count_nonzero(iou_val[:, None] >= iou_threshs, axis=0)
+#         fns = total_pos_gt - tps
+#         fps = total_pos_est - tps
+#
+#         precision[prob_ind] = tps / (tps + fps)
+#         recall[prob_ind] = tps / (tps + fns)
+#
+#     return precision, recall, test_probs, iou_threshs
 
 
 def interpolated_precision(precision):
