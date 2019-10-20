@@ -1,3 +1,4 @@
+import open3d as o3d
 from segtester.types import Scene, Dataset
 from tqdm import tqdm
 from segtester import logger
@@ -55,13 +56,14 @@ class Segmentation3DAssessment:
         curr_gt_scene_id = None
         seg_3d_gt = None
         gt_label_map = None
-        for scene in tqdm(scenes_sorted_by_id, desc="scene"):
+        for scene in tqdm(scenes_sorted_by_id, desc="scene", total=len(est_dataset.scenes)):
             try:
 
                 save_path = self.conf.format_string_with_meta(f"{base_result_path}/{self.conf.save_path}", **{
                     "dataset_id": gt_dataset_conf.id, "scene_id": scene.id,
                     "alg_name": scene.alg_name,
                 })
+                print("")
 
                 if self.conf.skip_existing and os.path.exists(f"{save_path}"):
                     logger.warn(f"When getting results for 3d segmentation of {est_dataset_conf.id}->"
@@ -70,6 +72,7 @@ class Segmentation3DAssessment:
                     continue
 
                 if curr_gt_scene_id != scene.id:
+                    print("starting load gt scene")
                     curr_gt_scene_id = scene.id
                     for curr_gt_scene in gt_dataset.scenes:
                         if curr_gt_scene.id == curr_gt_scene_id:
@@ -82,6 +85,7 @@ class Segmentation3DAssessment:
                                                                 self.conf.label_map_dest_col)
                     seg_3d_gt.map_own_classes(gt_label_map)
 
+                print("starting load est scene")
                 seg_3d_est = scene.get_seg_3d(self.label_map)
 
                 est_label_map = self.label_map.get_label_map(scene.label_map_id_col,
@@ -96,27 +100,34 @@ class Segmentation3DAssessment:
 
                 # pcd1 = seg_3d_est.get_labelled_pcd(max_label=42, point_offset=[10, 0, 0])
                 # mapped_gt_seg.vis_labels(max_label=42, other_pcd=[pcd1])
-
+                print("calc res class")
                 res_class = Segmentation3DAssessment.get_results(seg_3d_est.classes,
                                                                  mapped_gt_seg.classes, all_class_ids)
+                print("calc res class1")
                 est_labels, gt_labels, _ = seg_3d_est.get_segmentation_labels(mapped_gt_seg, match_classes=True)
+                print("calc res class2")
                 res_inst = Segmentation3DAssessment.get_results(est_labels, gt_labels)
 
-                precision, recall, test_probs, iou_threshs = \
-                    smet.precision_recall(est_labels, gt_labels, seg_3d_est.confidence_scores,
-                                          test_probs=np.arange(-1e-6, 1.005, 5e-3))
+                # precision, recall, test_probs, iou_threshs = \
+                #     smet.precision_recall(est_labels, gt_labels, seg_3d_est.confidence_scores,
+                #                           test_probs=np.arange(-1e-6, 1.005, 1e-2))
+
+                # per_class_tp_count, per_class_fn_count, per_class_fp_count, test_probs, iou_threshs  = \
+                #     smet.precision_recall(est_labels, gt_labels, seg_3d_est.confidence_scores,
+                #                           test_probs=np.arange(-1e-6, 1.005, 5e-3))
+                print("calc res seg")
 
                 est_labels, gt_labels, _ = seg_3d_est.get_segmentation_labels(mapped_gt_seg, match_classes=False)
                 res_seg = Segmentation3DAssessment.get_results(est_labels, gt_labels)
 
-                os.makedirs(save_path, exist_ok=True)
                 print(f"saving to: {save_path}")
+                os.makedirs(save_path, exist_ok=True)
                 np.savez_compressed(f"{save_path}/point_dists", point_dists=point_dists)
                 np.savez_compressed(f"{save_path}/res_class", **res_class)
                 np.savez_compressed(f"{save_path}/res_inst", **res_inst)
                 np.savez_compressed(f"{save_path}/res_seg", **res_seg)
-                np.savez_compressed(f"{save_path}/pvr", precision=precision, recall=recall,
-                                    test_probs=test_probs, iou_threshs=iou_threshs)
+                # np.savez_compressed(f"{save_path}/pvr", precision=precision, recall=recall,
+                #                     test_probs=test_probs, iou_threshs=iou_threshs)
 
             except Exception as e:
 

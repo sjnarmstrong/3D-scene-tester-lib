@@ -14,7 +14,7 @@ class Segmentation3d(BCNF.ConfigParser):
         self.est_dataset: 'ResultsConfig' = BCNF.RequiredMember(ResultsConfig)
         self.label_map: 'CSVLabelMap' = BCNF.RequiredMember(CSVLabelMap)
         self.label_map_dest_col: str = BCNF.RequiredMember()
-        self.skip_existing = BCNF.OptionalMember(default_ret=False)
+        self.skip_existing = BCNF.OptionalMember(default_ret=True)
         self.save_path = BCNF.OptionalMember(default_ret="{dataset_id}/{scene_id}/{alg_name}/seg/seg3d")
         self.point_dist_thresh = BCNF.OptionalMember(default_ret=0.5)
 

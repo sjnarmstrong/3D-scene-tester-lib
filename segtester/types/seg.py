@@ -1,4 +1,5 @@
 import numpy as np
+from segtester.cutil import cutil
 
 
 class Seg:
@@ -16,11 +17,7 @@ class Seg:
         self.confidence_scores = confidence_scores if confidence_scores is not None else np.ones(len(self.classes))
 
     def get_instance_ious(self, ground_truth):
-        masks_p = self.instance_masks[:, None]
-        masks_gt = ground_truth.instance_masks[None]
-        intersection = np.count_nonzero(np.bitwise_and(masks_gt, masks_p), axis=2)
-        union = np.count_nonzero(np.bitwise_or(masks_gt, masks_p), axis=2)
-        return intersection/union
+        return cutil.calc_iou_mtx(self.instance_masks, ground_truth.instance_masks)
 
     def get_instance_map(self, ground_truth, min_match_iou=0, allow_duplicates=False,
                          class_map=None, match_classes=False):

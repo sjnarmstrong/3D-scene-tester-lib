@@ -1,6 +1,8 @@
 from segtester.types.seg import Seg
 from sklearn.neighbors import BallTree, KDTree
 import numpy as np
+from sklearn.cluster import AgglomerativeClustering
+import open3d as o3d
 
 SEARCH_TREES = {"KD": KDTree, "BALL": BallTree}
 
@@ -13,7 +15,20 @@ class Seg3D(Seg):
         if instance_masks is None:
             self.instance_masks, self.instance_classes = self.get_instance_masks_from_classes()
 
-    def get_instance_masks_from_classes(self, dist_thresh=0.60, classes_to_skip=[0]):
+        assert len(self.classes) == len(self.points), "This shouldn't happen"
+        if len(self.points) > 1000000:
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(self.points)
+            downpcd = pcd.voxel_down_sample(voxel_size=0.01)
+            down_points = np.array(downpcd.points)
+            class_inds = self.get_search_tree().query(down_points, k=1, return_distance=False)[:, 0]
+            self.classes = self.classes[class_inds]
+            self.points = down_points
+            self.instance_masks = self.instance_masks[:, class_inds]
+            self.confidence_scores = self.confidence_scores[class_inds]
+            self.search_tree = None
+
+    def get_instance_masks_from_classes_old(self, dist_thresh=0.60, classes_to_skip=[0]):
         search_tree = self.get_search_tree()
         instance_masks = []
         instance_classes = []
@@ -40,6 +55,43 @@ class Seg3D(Seg):
                 unassigned_points[nearby_arr] = False
                 points_to_search.extend(self.points[nearby_arr])
         return np.array(instance_masks), np.array(instance_classes)
+
+    def get_instance_masks_from_classes(self, dist_thresh=0.12, classes_to_skip=[0], linkage="single"):
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(self.points)
+        downpcd = pcd.voxel_down_sample(voxel_size=0.10)
+        down_points = np.array(downpcd.points)
+        #class_inds = KDTree(down_points).query(self.points, k=1, return_distance=False)[:, 0]
+        assert len(self.classes) == len(self.points), "This shouldn't happen"
+        class_inds = self.get_search_tree().query(down_points, k=1, return_distance=False)[:, 0]
+        classes = self.classes[class_inds]
+
+        seg_labels = np.zeros_like(self.classes)
+        unique_classes = np.unique(classes)
+        current_max_label = 0
+        instance_classes = []
+        for c in unique_classes:
+            if c in classes_to_skip:
+                continue
+            mask = classes == c
+            masked_pts = down_points[mask]
+            if len(masked_pts) >= 2:
+                clustering = AgglomerativeClustering(n_clusters=None,
+                                                     distance_threshold=dist_thresh,
+                                                     linkage=linkage).fit(masked_pts)
+                labels = clustering.labels_ + (current_max_label + 1)
+            else:
+                labels = np.repeat(current_max_label + 1, len(masked_pts))
+            next_max_label = labels.max()
+            instance_classes += [c] * (next_max_label - current_max_label)
+            current_max_label = next_max_label
+            mask_reverse = self.classes == c
+            reverse_mapped_inds = KDTree(masked_pts).query(self.points[mask_reverse], k=1, return_distance=False)[:, 0]
+            seg_labels[mask_reverse] = labels[reverse_mapped_inds]
+        # self.vis_labels(seg_labels)
+        instance_masks = np.unique(seg_labels)[1:, None] == seg_labels[None]
+
+        return instance_masks, np.array(instance_classes)
 
     def get_search_tree(self, search_tree_type='KD'):
         if self.search_tree is None:
@@ -87,7 +139,6 @@ class Seg3D(Seg):
         return Seg3D(points, classes, instance_masks, instance_classes, confidence_scores)
 
     def get_labelled_pcd(self, labels_to_vis=None, max_label=None, point_offset=[0,0,0]):
-        import open3d as o3d
         from matplotlib import pyplot as plt
         cmap = plt.get_cmap("hsv")
         if labels_to_vis is None:
@@ -105,7 +156,6 @@ class Seg3D(Seg):
         return pcd
 
     def vis_labels(self, labels_to_vis=None, max_label=None, other_pcd=[]):
-        import open3d as o3d
         o3d.visualization.draw_geometries([self.get_labelled_pcd(labels_to_vis, max_label)]+other_pcd)
 
     @staticmethod
@@ -217,27 +267,30 @@ if __name__ == "__main__":
         "/mnt/1C562D12562CEDE8/DATASETS/scannet/scenes/scans/scene0000_00/scene0000_00_vh_clean.aggregation.json",
         "/mnt/1C562D12562CEDE8/DATASETS/scannet/scenes/scans/scene0000_00/scene0000_00_vh_clean_2.0.010000.segs.json"
     )
+    inst_masks, inst_classes = data1.get_instance_masks_from_classes()
+    # Skip seg label 1
+    print(data1)
     # data2 = Seg3D.get_from_scannet_ply_format(
     #     "/mnt/1C562D12562CEDE8/DATASETS/scannet/scenes/scans/scene0706_00/scene0706_00_vh_clean_2.ply",
     #     "/mnt/1C562D12562CEDE8/DATASETS/scannet/scenes/scans/scene0706_00/scene0706_00_vh_clean.aggregation.json",
     #     "/mnt/1C562D12562CEDE8/DATASETS/scannet/scenes/scans/scene0706_00/scene0706_00_vh_clean_2.0.010000.segs.json"
     # )
-    data_gt = Seg3D.get_from_scannet_ply_format(
-        "/mnt/1C562D12562CEDE8/DATASETS/scannet/scenes/scans/scene0000_00/scene0000_00_vh_clean.ply",
-        "/mnt/1C562D12562CEDE8/DATASETS/scannet/scenes/scans/scene0000_00/scene0000_00_vh_clean.aggregation.json",
-        "/mnt/1C562D12562CEDE8/DATASETS/scannet/scenes/scans/scene0000_00/scene0000_00_vh_clean.segs.json"
-    )
-    from time import time
-    t1 = time()
-    seg, dists = data1.get_flattened_seg(data_gt)
-    t2 = time()
-    print(f"Getting aligned seg took {t2-t1}")
-    t1 = time()
-    l1, l2 = data1.get_class_labels(seg)
-    t2 = time()
-    print(f"Getting class labels took {t2-t1}")
-    print(l1)
-
+    # data_gt = Seg3D.get_from_scannet_ply_format(
+    #     "/mnt/1C562D12562CEDE8/DATASETS/scannet/scenes/scans/scene0000_00/scene0000_00_vh_clean.ply",
+    #     "/mnt/1C562D12562CEDE8/DATASETS/scannet/scenes/scans/scene0000_00/scene0000_00_vh_clean.aggregation.json",
+    #     "/mnt/1C562D12562CEDE8/DATASETS/scannet/scenes/scans/scene0000_00/scene0000_00_vh_clean.segs.json"
+    # )
+    # from time import time
+    # t1 = time()
+    # seg, dists = data1.get_flattened_seg(data_gt)
+    # t2 = time()
+    # print(f"Getting aligned seg took {t2-t1}")
+    # t1 = time()
+    # l1, l2 = data1.get_class_labels(seg)
+    # t2 = time()
+    # print(f"Getting class labels took {t2-t1}")
+    # print(l1)
+    #
 
 
 

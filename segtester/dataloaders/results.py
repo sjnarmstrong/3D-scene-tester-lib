@@ -58,7 +58,7 @@ class ResultsScene:
         poses_np = np_pose_file["pose_array"].reshape(-1, 4, 4)
         if "init_cam_to_world" in np_pose_file:
             init_cam_to_world = np_pose_file["init_cam_to_world"]
-            if poses_np[0] != init_cam_to_world:
+            if (poses_np[0] != init_cam_to_world).any():
                 poses_np = init_cam_to_world@poses_np
                 #TODO test me properly
         poses = [it.reshape(4, 4) for it in poses_np]
