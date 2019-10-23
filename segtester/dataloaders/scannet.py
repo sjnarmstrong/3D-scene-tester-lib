@@ -21,7 +21,7 @@ class ScannetScene(Scene):
                  projected_instance_archive, projected_label_file, labelled_pcd_file):
         super().__init__()
         self.id = id
-        self.label_map_id_col = "id"
+        self.label_map_id_col = "nyu40id"
         self.label_map_label_col = "category"
         self.info_path = info_path
         self.sens_path = sens_path
@@ -167,7 +167,9 @@ class ScannetScene(Scene):
 
     def get_seg_3d(self, label_map):
         import json
+        from plyfile import PlyData, PlyElement
         import difflib
+        from sklearn.neighbors import KDTree
         # points, conf, ids = Seg3D.load_points_and_labels_from_ply(self.labelled_pcd_file)
         points = np.array(self.get_pcd().points)
         with open(self.segmentation_map) as fp:
@@ -176,45 +178,57 @@ class ScannetScene(Scene):
             seg_groups = json.load(fp)['segGroups']
         instance_masks = np.array([np.in1d(seg_indices, seg_group['segments']) for seg_group in seg_groups])
         mask_labels = [seg_group['label'] for seg_group in seg_groups]
-        # counts = np.bincount(ids[instance_masks[0]])
-        # encoded_mask_labels = [np.argmax(counts)]
+        vertex_data = PlyData.read(self.labelled_pcd_file)['vertex']
+
+        lbled_points = np.empty((3, vertex_data.count), dtype=np.float)
+        point_labels = vertex_data['label']
+        lbled_points[0] = vertex_data['x']
+        lbled_points[1] = vertex_data['y']
+        lbled_points[2] = vertex_data['z']
+        lbled_points = lbled_points.T
+        mapping = KDTree(lbled_points).query(points, k=1, return_distance=False)[:, 0]
+        classes = point_labels[mapping]
+
+        encoded_mask_labels = np.empty(len(instance_masks), dtype=np.int)
+        for loop_ind in range(len(instance_masks)):
+            encoded_mask_labels[loop_ind] = np.argmax(np.bincount(classes[instance_masks[loop_ind]]))
 
         conf = np.ones(len(points))
 
-        text_map = label_map.get_inverse_text_map(self.label_map_id_col, self.label_map_label_col)
+        # text_map = label_map.get_inverse_text_map(self.label_map_id_col, self.label_map_label_col)
+        #
+        # encoded_mask_labels = []
+        # for lbl in mask_labels:
+        #     if lbl in text_map:
+        #         encoded_mask_labels.append(text_map[lbl])
+        #         continue
+        #     if lbl[-1] == 's' and lbl[:-1] in text_map:
+        #         encoded_mask_labels.append(text_map[lbl[:-1]])
+        #         continue
+        #     lbl_test = lbl.replace(" cabinet", "")
+        #     if lbl_test in text_map:
+        #         encoded_mask_labels.append(text_map[lbl_test])
+        #         continue
+        #     lbl_test = lbl.replace("potted ", "")
+        #     if lbl_test in text_map:
+        #         encoded_mask_labels.append(text_map[lbl_test])
+        #         continue
+        #     lbl_test = lbl.replace("starbucks ", "")
+        #     if lbl_test in text_map:
+        #         encoded_mask_labels.append(text_map[lbl_test])
+        #         continue
+        #
+        #     closest_matches = difflib.get_close_matches(lbl, list(text_map.keys()), 1)
+        #     assert len(closest_matches) > 0, f"Could not file label: {lbl} in {text_map}"
+        #     encoded_mask_labels.append(text_map[closest_matches[0]])
+        #     logger.warn(f"Could not find lbl: {lbl} assuming it is {closest_matches[0]}")
 
-        encoded_mask_labels = []
-        for lbl in mask_labels:
-            if lbl in text_map:
-                encoded_mask_labels.append(text_map[lbl])
-                continue
-            if lbl[-1] == 's' and lbl[:-1] in text_map:
-                encoded_mask_labels.append(text_map[lbl[:-1]])
-                continue
-            lbl_test = lbl.replace(" cabinet", "")
-            if lbl_test in text_map:
-                encoded_mask_labels.append(text_map[lbl_test])
-                continue
-            lbl_test = lbl.replace("potted ", "")
-            if lbl_test in text_map:
-                encoded_mask_labels.append(text_map[lbl_test])
-                continue
-            lbl_test = lbl.replace("starbucks ", "")
-            if lbl_test in text_map:
-                encoded_mask_labels.append(text_map[lbl_test])
-                continue
-
-            closest_matches = difflib.get_close_matches(lbl, list(text_map.keys()), 1)
-            assert len(closest_matches) > 0, f"Could not file label: {lbl} in {text_map}"
-            encoded_mask_labels.append(text_map[closest_matches[0]])
-            logger.warn(f"Could not find lbl: {lbl} assuming it is {closest_matches[0]}")
-
-        ids = np.zeros(instance_masks.shape[1], dtype=np.int)
-        for mask, lbl in zip(instance_masks, encoded_mask_labels):
-            ids[mask] = lbl
+        # ids = np.zeros(instance_masks.shape[1], dtype=np.int)
+        # for mask, lbl in zip(instance_masks, encoded_mask_labels):
+        #     ids[mask] = lbl
 
         return Seg3D(
-            points, ids, instance_masks, np.array(encoded_mask_labels, dtype=np.int), conf
+            points, classes, instance_masks, encoded_mask_labels, conf
         )
 
 

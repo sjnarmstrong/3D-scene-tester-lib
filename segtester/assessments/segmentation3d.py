@@ -63,7 +63,6 @@ class Segmentation3DAssessment:
                     "dataset_id": gt_dataset_conf.id, "scene_id": scene.id,
                     "alg_name": scene.alg_name,
                 })
-                print("")
 
                 if self.conf.skip_existing and os.path.exists(f"{save_path}"):
                     logger.warn(f"When getting results for 3d segmentation of {est_dataset_conf.id}->"

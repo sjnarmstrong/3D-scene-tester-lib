@@ -173,7 +173,7 @@ class Execute3DMV:
                                                                 padding_x=self.grid_padX,
                                                                 padding_y=self.grid_padY,
                                                                 device=self.device)
-                    pcd = create_pcd_from_occ(scene_occ, occ_start, self.conf.voxel_size, self.device).cpu().numpy().T
+                    #pcd = create_pcd_from_occ(scene_occ, occ_start, self.conf.voxel_size, self.device).cpu().numpy().T
                     # pred_pcd = o3d.geometry.PointCloud()
                     # pred_pcd.points = o3d.utility.Vector3dVector(pcd)
                     # o3d.visualization.draw_geometries([pred_pcd])
@@ -270,6 +270,9 @@ class Execute3DMV:
                     likelihoods = F.softmax(output_probs, dim=1).cpu().numpy()
                     masked_likelihoods = likelihoods[(scene_occ[0]*scene_occ[1]).cpu().numpy().flat]
 
+                    #   Sometimes the nib gets cut off from other method...
+                    pcd = (torch.stack((torch.where(scene_occ[0]*scene_occ[1]))).to(dtype=torch.double) *
+                           self.conf.voxel_size + occ_start[[2, 0, 1], None])[[1, 2, 0]].T.cpu().numpy()
                     pred_pcd = o3d.geometry.PointCloud()
                     pred_pcd.points = o3d.utility.Vector3dVector(pcd)
                     o3d.io.write_point_cloud(f"{save_path}/pcd.ply", pred_pcd)

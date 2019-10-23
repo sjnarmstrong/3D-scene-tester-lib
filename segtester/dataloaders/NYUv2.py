@@ -23,8 +23,8 @@ class NYUv2Scene(Scene):
     def __init__(self, _id, raw_scene: RawDatasetScene, gt_files, h5path):
         super().__init__()
         self.id = _id
-        self.label_map_id_col = "nyu40id"
-        self.label_map_label_col = "nyu40class"
+        self.label_map_id_col = "nyuId"
+        self.label_map_label_col = "nyuClass"
         self.raw_scene = raw_scene
         self.gt_files = gt_files
         self.h5path = h5path
@@ -91,61 +91,87 @@ class NYUv2Scene(Scene):
     def get_pose_path(self):
         raise NotImplementedError()
 
-    def get_labelled_reproj_seg3d(self, depth_min=0.001, depth_max=50.0, predicted_pose=None):
-        from zipfile import ZipFile
-        import imageio
+    def get_labelled_reproj_seg3d(self, depth_min=0.001, depth_max=50.0, est_scenes=None, est_seg3d=None):
+        from scipy.spatial.transform import Rotation as R
 
         d_image_dims = self.get_depth_size()
-        rgb_img_dim = self.get_rgb_size()
         # d_image_intrinsics = self.get_intrinsic_depth()
         # rgb_intrinsics = d_image_intrinsics * [[rgb_img_dim[1]], [rgb_img_dim[0]], [1], [1]] / \
         #     [[d_image_dims[1]], [d_image_dims[0]], [1], [1]]
-        rgb_intrinsics = self.get_intrinsic_rgb()
+        d_intrinsics = np.eye(4, dtype=np.float64)
+        d_intrinsics[:3, :3] = self.get_intrinsic_depth()
 
-        d_scale = self.get_depth_scale()
-        inv_intr = np.linalg.inv(rgb_intrinsics)
+        inv_intr = np.linalg.inv(d_intrinsics)
         v, u, const_1, const_2 = np.meshgrid(
-            np.arange(rgb_img_dim[1]),
-            np.arange(rgb_img_dim[0]),
+            np.arange(d_image_dims[1]),
+            np.arange(d_image_dims[0]),
             np.array([1]),
             np.array([1]))
         inds = np.stack((v.ravel(), u.ravel(), const_1.ravel(), const_2.ravel()))
         rw_points_cam = inv_intr @ inds
-        inds_depth = inds[:2]*[[d_image_dims[1]-1], [d_image_dims[0]-1]]/[[rgb_img_dim[1]-1], [rgb_img_dim[0]-1]]
+        inds_depth = inds[:2]*[[d_image_dims[1]-1], [d_image_dims[0]-1]]/[[d_image_dims[1]-1], [d_image_dims[0]-1]]
         inds_depth = np.round(inds_depth).astype(np.int)
-        with ZipFile(self.projected_label_file, 'r') as labeled_arch, ZipFile(self.projected_instance_archive, 'r') as instance_arch:
-            n_list_lbl = labeled_arch.namelist()
-            n_list_inst = instance_arch.namelist()
 
-            for depth_image, camera_to_world, i in self.get_depth_position_it():
-                lbl_filt_name, lbl_seg_name = f'label-filt/{i}.png', f'instance-filt/{i}.png'
-                if lbl_filt_name not in n_list_lbl or lbl_seg_name not in n_list_inst:
+        for est_scene_it in est_scenes:
+            pose_path = f"{est_scene_it.base_path}/elastic_generated.freiburg"
+            if os.path.isfile(pose_path):
+                break
+        else:
+            raise FileNotFoundError("Could not find est scene with elastic_generated.freiburg")
+
+        with open(pose_path) as fp:
+            odo_data = np.array([[float(it) * 1000 for it in line.split()] for line in fp.read().splitlines()])
+
+        with h5py.File(self.h5path, 'r') as f:
+            depth_frame_names = [f[frame][()].tobytes().decode('utf16') for frame in f.get('rawDepthFilenames')[0]]
+            scene_names = [f[frame][()].tobytes().decode('utf16') for frame in f.get('scenes')[0]]
+            depths = f['depths']
+            labels = f['labels']
+            instances = f['instances']
+
+            for scene_id, scene_name in enumerate(scene_names):
+                if scene_name != self.id:
                     continue
-                lbl_img = imageio.imread(labeled_arch.open(lbl_filt_name))
-                lbl_seg_img = imageio.imread(instance_arch.open(lbl_seg_name))
+                depth_frame_name, depth_image, lbl_img, inst_img = \
+                    depth_frame_names[scene_id], depths[scene_id], labels[scene_id], instances[scene_id]
 
-                scaled_d_img = depth_image[inds_depth[1], inds_depth[0]]/d_scale
+                timestamp_gt = float(depth_frame_name.split('-')[1])
+                best_match_ind = np.argmin(np.abs(odo_data[:, 0] - timestamp_gt))
+                best_match_error = np.abs(odo_data[best_match_ind, 0] - timestamp_gt)
+                if best_match_error > 0.1:
+                    print("timestamp match too far off. Skipping frame")
+                    continue
+
+                camera_to_world = np.eye(4, dtype=np.float64)
+                camera_to_world[:3, :3] = R.from_quat(odo_data[best_match_ind, 4:]).as_dcm()
+                camera_to_world[0:3, 3] = odo_data[best_match_ind, 1:4] / 1000
+
+                scaled_d_img = depth_image.T[inds_depth[1], inds_depth[0]]
                 d_img_mask = np.logical_and(scaled_d_img >= depth_min, scaled_d_img <= depth_max)
-                proj_points_cam = rw_points_cam[:, d_img_mask]*scaled_d_img[d_img_mask]
+                proj_points_cam = rw_points_cam[:, d_img_mask] * scaled_d_img[d_img_mask]
                 proj_points_cam[3] = 1.0
-                proj_points_world = camera_to_world@proj_points_cam
-                pt_lbls = lbl_img.flat[d_img_mask]
-                pt_seg = lbl_seg_img.flat[d_img_mask]
-                stacked_label_inst = np.stack([pt_lbls, pt_seg])
-                unique_segs = np.unique(stacked_label_inst, axis=1)
-                instance_masks = np.all(np.equal(stacked_label_inst[:, None], unique_segs[:, :, None]), axis=0)
+                proj_points_world = camera_to_world @ proj_points_cam
+
+                pt_inst = inst_img.T.flatten()[d_img_mask]
+                pt_lbls = lbl_img.T.flatten()[d_img_mask]
+                stacked_inst_seg = np.stack([pt_inst, pt_lbls])
+                unique_instances = np.unique(stacked_inst_seg, axis=1)
+                unique_instances = unique_instances[:, unique_instances[1] != 0]
+                inst_mask = stacked_inst_seg[:, None] == unique_instances[:, :, None]
+                inst_mask = np.logical_and(inst_mask[0], inst_mask[1])
+
                 s3d = Seg3D(
-                    proj_points_world.T[:, :3], pt_lbls, instance_masks, unique_segs[0], np.ones(len(pt_lbls))
+                    proj_points_world.T[:, :3], pt_lbls, inst_mask, unique_instances[1], np.ones(len(pt_lbls))
                 )
-                pt_lbls = lbl_img.flat
-                pt_seg = lbl_seg_img.flat
+                pt_lbls = inst_img.T.flat
+                pt_seg = lbl_img.T.flat
                 stacked_label_inst = np.stack([pt_lbls, pt_seg])
                 unique_segs = np.unique(stacked_label_inst, axis=1)
                 instance_masks = np.all(np.equal(stacked_label_inst[:, None], unique_segs[:, :, None]), axis=0)
                 s2d = Seg2D(
-                    lbl_img, instance_masks, unique_segs[0], np.ones(len(pt_lbls))
+                    lbl_img.T, instance_masks, unique_segs[0], np.ones(len(pt_lbls))
                 )
-                yield s3d, s2d, inds[[1, 0]][:, d_img_mask], i
+                yield s3d, s2d, inds[[1, 0]][:, d_img_mask], scene_id
 
     def get_seg_3d(self, label_map):
         raise NotImplementedError()

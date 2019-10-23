@@ -6,9 +6,8 @@ tests:
 - id: OdometryAssessment
   gt_dataset:
     id: "SCANNET"
-    file_map: "/media/sholto/Datasets/scenenn_val_dataset.csv"
+    file_map: "/media/sholto/Datasets/datasets/scenenn_val_dataset.csv"
   est_dataset:
     file_map: "/media/sholto/Datasets/results/ActualResults/scannet_results_conf.csv"
-    label_map: "/media/sholto/Datasets/results/label_map.csv"
     dataset_id: "SCANNET"
 meta: {}
