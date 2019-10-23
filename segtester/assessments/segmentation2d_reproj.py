@@ -70,7 +70,7 @@ class Segmentation2DReprojAssessment:
                     seg_3d_est.map_own_classes(est_label_map)
                     cashed_est_3dseg.append(seg_3d_est)
 
-                for reproj_gt_seg, s2d_gt, seg_inds, img_nr in gt_scene.get_labelled_reproj_seg3d():
+                for reproj_gt_seg, s2d_gt, seg_inds, img_nr in gt_scene.get_labelled_reproj_seg3d(est_scenes=scenes_by_id[scene_id], est_seg3d=seg_3d_est):
                     reproj_gt_seg.map_own_classes(gt_label_map)
                     s2d_gt.map_own_classes(gt_label_map)
 

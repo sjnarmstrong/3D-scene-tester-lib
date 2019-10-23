@@ -56,7 +56,8 @@ class Seg3D(Seg):
                 points_to_search.extend(self.points[nearby_arr])
         return np.array(instance_masks), np.array(instance_classes)
 
-    def get_instance_masks_from_classes(self, dist_thresh=0.12, classes_to_skip=[0], linkage="single"):
+    # def get_instance_masks_from_classes(self, dist_thresh=0.12, classes_to_skip=[0], linkage="single"):
+    def get_instance_masks_from_classes(self, dist_thresh=0.30, classes_to_skip=[0], linkage="single"):
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(self.points)
         downpcd = pcd.voxel_down_sample(voxel_size=0.10)

@@ -9,10 +9,12 @@ class SummarizeRes(BCNF.ConfigParser):
     def __init__(self):
         super().__init__()
         self.id: str = BCNF.OptionalMember()
+        self.dataset_id: str = BCNF.OptionalMember()
         self.est_dataset: 'ResultsConfig' = BCNF.RequiredMember(ResultsConfig)
         self.label_map: 'CSVLabelMap' = BCNF.RequiredMember(CSVLabelMap)
         self.label_map_dest_col: str = BCNF.RequiredMember()
         self.label_map_dest_name_col: str = BCNF.RequiredMember()
+        self.save_path = BCNF.OptionalMember(default_ret="summary/{dataset_id}/")
 
     def __call__(self, base_result_path, *args, **kwargs):
         from segtester.assessments.summarizeresults import SummarizeRes

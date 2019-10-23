@@ -1,0 +1,17 @@
+---
+name: Base Test
+description: This test serves as an example to how a config file may look
+base_result_path: "/media/sholto/Datasets1/results/ActualResults/20191008"
+tests:
+- id: Segmentation2dReproj
+  est_dataset:
+    file_map: "/media/sholto/Datasets1/results/ActualResults/nyuv2_results.csv"
+    dataset_id: "NYUv2"
+  gt_dataset:
+    id: "NYUv2"
+    zip_file_loc: "/media/sholto/Datasets1/NYUv2/nyu_depth_v2_raw.zip"
+    gt_file_loc: "/media/sholto/Datasets1/NYUv2/nyu_depth_v2_labeled.mat"
+  label_map:
+    csv_path: "/media/sholto/Datasets1/results/label_map.csv"
+  label_map_dest_col: "eigen13id"
+meta: {}

@@ -1,5 +1,6 @@
 import numpy as np
 from segtester.cutil import cutil
+import torch
 
 
 class Seg:
@@ -16,7 +17,26 @@ class Seg:
         self.instance_classes = instance_classes
         self.confidence_scores = confidence_scores if confidence_scores is not None else np.ones(len(self.classes))
 
+    @staticmethod
+    def calc_iou_mtx_gpu(a, b):
+        a = torch.tensor(a, device='cuda')
+        b = torch.tensor(b, device='cuda')
+        res = np.empty((a.shape[0], b.shape[0]), dtype=np.float64)
+        for i in range(a.shape[0]):
+            for j in range(b.shape[0]):
+                int_it = (a[i] * b[j]).sum()
+                union_it = (a[i] + b[j]).sum()
+                res[i, j] = float(int_it) / float(union_it) if union_it > 0 else 0
+        return res
+
     def get_instance_ious(self, ground_truth):
+        if torch.cuda.is_available() and len(self.classes) > 100000:
+            try:
+                return self.calc_iou_mtx_gpu(self.instance_masks, ground_truth.instance_masks)
+            except Exception:
+                print("I could not run on gpu reverting to cpu")
+                pass
+
         return cutil.calc_iou_mtx(self.instance_masks, ground_truth.instance_masks)
 
     def get_instance_map(self, ground_truth, min_match_iou=0, allow_duplicates=False,
