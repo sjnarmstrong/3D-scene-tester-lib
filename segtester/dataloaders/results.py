@@ -4,6 +4,7 @@ from segtester import logger
 import csv
 import open3d as o3d
 from segtester.types.seg3d import Seg3D
+from segtester.types.seg2d import Seg2D
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -25,6 +26,20 @@ class ResultsScene:
         self.cashed_prob_data = None
 
         self.label_map_id_col = label_map_id_col
+
+    def get_seg_2d_from_labeled_frame_id(self, frame_id, output_shape):
+        lk = np.load(f"{self.base_path}/frames/frame_{frame_id}.npz")["likelihoods"]
+        classes = lk.argmax(axis=2).T
+        probs = lk.max(axis=2).T
+        v, u = np.meshgrid(np.arange(output_shape[1]), np.arange(output_shape[0]))
+        inds = np.stack((u, v))
+        inds = np.round(inds * [[[classes.shape[0] - 1]], [[classes.shape[1] - 1]]] /
+                        [[[output_shape[0] - 1]], [[output_shape[1] - 1]]]).astype(np.int)
+        classes = classes[inds[0], inds[1]]
+        unique_classes = np.unique(classes)
+        unique_classes = unique_classes[unique_classes!=0]
+        instance_masks = classes[None] == unique_classes[:, None, None]
+        return Seg2D(classes, instance_masks, unique_classes, probs)
 
     def get_pcd(self):
         return o3d.io.read_point_cloud(self.mesh_path)

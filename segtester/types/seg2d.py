@@ -47,7 +47,7 @@ class Seg2D(Seg):
         max_class = labels_to_vis.max()
         vis_cmap = cmap((np.arange(max_class+1)-1)/max_class)
         vis_cmap[0] = (0.3, 0.3, 0.3, 1)
-        Image.fromarray((vis_cmap[reshaped_labels][:, :, :3] * 255).astype(np.uint8)).show()
+        return Image.fromarray((vis_cmap[reshaped_labels][:, :, :3] * 255).astype(np.uint8))
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ from segtester.types.seg2d import Seg2D
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from segtester.configs.assessments.seg2d_reproj import Segmentation2dReproj as Config
+    from segtester.configs.assessments.seg3d import Segmentation3d as Config
 
 
 class SubTestResult:
@@ -87,27 +87,20 @@ class Segmentation2DReprojAssessment:
                                         f"found existing path {save_path}.\n Skipping this scene...")
                             continue
 
-                        if self.conf.use_reprojection:
-                            mapped_est_seg, dists = seg_3d_est.get_mapped_seg(reproj_gt_seg)
-                            dist_mask = dists.flatten() < self.conf.point_dist_thresh
-                            seg_inds = seg_inds[:, dist_mask]
-                            mapped_labels = np.zeros(s2d_gt.image_shape, dtype=np.int)
-                            mapped_labels[seg_inds[0], seg_inds[1]] = mapped_est_seg.classes[dist_mask]
-                            mapped_segs = np.zeros((mapped_est_seg.instance_masks.shape[0],) + s2d_gt.image_shape,
-                                                   dtype=np.bool)
-                            mapped_segs[:, seg_inds[0], seg_inds[1]] = mapped_est_seg.instance_masks[:, dist_mask]
-                            seg_mask = np.any(mapped_segs, axis=(1, 2))
+                        mapped_est_seg, dists = seg_3d_est.get_mapped_seg(reproj_gt_seg)
+                        dist_mask = dists.flatten() < self.conf.point_dist_thresh
+                        seg_inds = seg_inds[:, dist_mask]
+                        mapped_labels = np.zeros(s2d_gt.image_shape, dtype=np.int)
+                        mapped_labels[seg_inds[0], seg_inds[1]] = mapped_est_seg.classes[dist_mask]
+                        mapped_segs = np.zeros((mapped_est_seg.instance_masks.shape[0],) + s2d_gt.image_shape,
+                                               dtype=np.bool)
+                        mapped_segs[:, seg_inds[0], seg_inds[1]] = mapped_est_seg.instance_masks[:, dist_mask]
+                        seg_mask = np.any(mapped_segs, axis=(1, 2))
 
-                            s2d_est = Seg2D(
-                                mapped_labels, mapped_segs[seg_mask], mapped_est_seg.instance_classes[seg_mask],
-                                np.ones(mapped_labels.size)
-                            )
-                        else:
-                            s2d_est = scene.get_seg_2d_from_labeled_frame_id(img_nr, s2d_gt.image_shape)
-                            est_label_map = self.label_map.get_label_map(scene.label_map_id_col,
-                                                                         self.conf.label_map_dest_col)
-                            s2d_est.map_own_classes(est_label_map)
-
+                        s2d_est = Seg2D(
+                            mapped_labels, mapped_segs[seg_mask], mapped_est_seg.instance_classes[seg_mask],
+                            np.ones(mapped_labels.size)
+                        )
 
                         res_class = Segmentation2DReprojAssessment.get_results(s2d_est.classes, s2d_gt.classes,
                                                                                all_class_ids)
@@ -159,13 +152,11 @@ class Segmentation2DReprojAssessment:
         pt_acc_num, pt_acc_den = smet.point_accuracy(est_labels, gt_labels)
         inst_acc_num, inst_acc_den, _ = smet.class_accuracy(est_labels, gt_labels, class_ids)
         mca = smet.mean_class_accuracy(inst_acc_num / inst_acc_den)
-        intersection, union = smet.iou(est_labels, gt_labels, class_ids)
-        iou = intersection / union
+        iou = smet.iou(est_labels, gt_labels, class_ids).tolist()
         miou = smet.miou(iou)
         fiou = smet.fiou(est_labels, gt_labels, class_ids)
         res = {
             "pt_acc_num": pt_acc_num, "pt_acc_den": pt_acc_den, "inst_acc_num": inst_acc_num,
-            "inst_acc_den": inst_acc_den, "mca": mca, "iou": iou, "miou": miou, "fiou": fiou,
-            "intersection": intersection, "union": union
+            "inst_acc_den": inst_acc_den, "mca": mca, "iou": iou, "miou": miou, "fiou": fiou
         }
         return res

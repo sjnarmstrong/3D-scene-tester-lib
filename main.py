@@ -9,11 +9,11 @@ def get_config_file():
         allow_next = False
         allow_prev = False
         if i_start > 0:
-            lines.append("]) Next page")
-            allow_next = True
-        if i_start+10 <= len(config_files):
             lines.append("[) Previous page")
             allow_prev = True
+        if i_start+10 <= len(config_files):
+            lines.append("]) Next page")
+            allow_next = True
         print('\n'.join(lines))
         ret_val = input("Please input your selection: ")
         if ret_val == ']':

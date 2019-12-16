@@ -91,7 +91,7 @@ class NYUv2Scene(Scene):
     def get_pose_path(self):
         raise NotImplementedError()
 
-    def get_labelled_reproj_seg3d(self, depth_min=0.001, depth_max=50.0, est_scenes=None, est_seg3d=None):
+    def get_labelled_reproj_seg3d(self, depth_min=0.001, depth_max=50.0, est_scenes=None, est_seg3d=None, load_from_file=False):
         from scipy.spatial.transform import Rotation as R
 
         d_image_dims = self.get_depth_size()

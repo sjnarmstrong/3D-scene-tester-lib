@@ -24,9 +24,9 @@ def iou(est_labels, gt_labels, all_labels=None):
         all_labels = np.unique([est_labels, gt_labels])
     gt_eq_label = all_labels[:, None] == gt_labels[None]
     est_eq_label = all_labels[:, None] == est_labels[None]
-    with np.errstate(divide='ignore', invalid='ignore'):
-        return np.count_nonzero(np.logical_and(gt_eq_label, est_eq_label), axis=1) / \
-               np.count_nonzero(np.logical_or(gt_eq_label, est_eq_label), axis=1)
+    intersection = np.count_nonzero(np.logical_and(gt_eq_label, est_eq_label), axis=1)
+    union = np.count_nonzero(np.logical_or(gt_eq_label, est_eq_label), axis=1)
+    return intersection, union
 
 
 def miou(iou):
