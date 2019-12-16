@@ -1,0 +1,5 @@
+# 3D-scene-tester-lib
+Performance evaluation on scene understanding algorithms
+
+## EVALUATION PLATFORM OVERVIEW
+The evaluation platform is required to provide a means to autonomously run scene understanding algorithms, perform assessments and create summary reports. This should be done in a fashion that is highly customisable, reproducible and extensible. It was decided to make use of configuration files to facilitate these requirements. These allow all the parameters that were used to produce a set of results to be stored in a single file. A configuration file contains a list of runnable tasks that the evaluation platform is able to perform. This allows one configuration to define multiple tasks. The entire configuration file is parsed before performing the tests to stop configuration errors causing failures while the platform is running. Furthermore, the platform will skip any test that causes an error during runtime. The work-flow of the main evaluation system is shown in \cref{fig:evalplatformdesign}.
