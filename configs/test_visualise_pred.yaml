@@ -1,15 +1,16 @@
 ---
 name: Base Test
 description: This test serves as an example to how a config file may look
-base_result_path: "/mnt/1C562D12562CEDE8/RESULTS/TestNoDate"
+base_result_path: "/media/sholto/Datasets/results/ActualResults/20191008"
 tests:
 - id: VisualisePredictions
   result_dataset:
-    file_map: "/mnt/1C562D12562CEDE8/RESULTS/scannet_results_conf.csv"
+    file_map: "/media/sholto/Datasets/results/ActualResults/scannet_results_conf2.csv"
     dataset_id: "SCANNET"
   label_map:
-    csv_path: "/mnt/1C562D12562CEDE8/RESULTS/label_map.csv"
-  label_map_dest_col: "nyu40id"
-  label_map_name_col: "nyu40class"
+    csv_path: "/media/sholto/Datasets/results/label_map.csv"
+  label_map_dest_col: "eigen13id"
+  label_map_name_col: "eigen13class"
   pause_on_scene: True
+  skip_existing: False
 meta: {}

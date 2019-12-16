@@ -96,6 +96,9 @@ class Segmentation3DAssessment:
 
                 seg_3d_est.map_own_classes(est_label_map)
                 seg_3d_est = seg_3d_est.get_masked_seg(point_dist_mask)
+                non_zero_mask = mapped_gt_seg.classes!=0
+                seg_3d_est = seg_3d_est.get_masked_seg(non_zero_mask)
+                mapped_gt_seg = mapped_gt_seg.get_masked_seg(non_zero_mask)
 
                 # pcd1 = seg_3d_est.get_labelled_pcd(max_label=42, point_offset=[10, 0, 0])
                 # mapped_gt_seg.vis_labels(max_label=42, other_pcd=[pcd1])
@@ -140,11 +143,15 @@ class Segmentation3DAssessment:
         pt_acc_num, pt_acc_den = smet.point_accuracy(est_labels, gt_labels)
         inst_acc_num, inst_acc_den, _ = smet.class_accuracy(est_labels, gt_labels, class_ids)
         mca = smet.mean_class_accuracy(inst_acc_num / inst_acc_den)
-        iou = smet.iou(est_labels, gt_labels, class_ids).tolist()
+        i, u = smet.iou(est_labels, gt_labels, class_ids)
+
+        with np.errstate(divide='ignore', invalid='ignore'):
+            iou = i/u
         miou = smet.miou(iou)
         fiou = smet.fiou(est_labels, gt_labels, class_ids)
         res = {
             "pt_acc_num": pt_acc_num, "pt_acc_den": pt_acc_den, "inst_acc_num": inst_acc_num,
-            "inst_acc_den": inst_acc_den, "mca": mca, "iou": iou, "miou": miou, "fiou": fiou
+            "inst_acc_den": inst_acc_den, "mca": mca, "iou": iou, "miou": miou, "fiou": fiou, "intersection": i.tolist(),
+            "union": u.tolist()
         }
         return res

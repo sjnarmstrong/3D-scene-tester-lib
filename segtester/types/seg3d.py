@@ -8,7 +8,7 @@ SEARCH_TREES = {"KD": KDTree, "BALL": BallTree}
 
 
 class Seg3D(Seg):
-    def __init__(self, points, classes, instance_masks, instance_classes, confidence_scores):
+    def __init__(self, points, classes, instance_masks, instance_classes, confidence_scores, no_voxel=False):
         super().__init__(classes, instance_masks, instance_classes, confidence_scores)
         self.points = points
         self.search_tree = None
@@ -16,7 +16,7 @@ class Seg3D(Seg):
             self.instance_masks, self.instance_classes = self.get_instance_masks_from_classes()
 
         assert len(self.classes) == len(self.points), "This shouldn't happen"
-        if len(self.points) > 1000000:
+        if not no_voxel and len(self.points) > 1000000:
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(self.points)
             downpcd = pcd.voxel_down_sample(voxel_size=0.01)
@@ -115,7 +115,8 @@ class Seg3D(Seg):
             confidence_scores[gt_thresh] = 0
         else:
             confidence_scores = None
-        return Seg3D(gt_seg.points[mapping], classes, instance_masks, gt_seg.instance_classes, confidence_scores), dists
+        return Seg3D(gt_seg.points[mapping], classes, instance_masks, gt_seg.instance_classes, confidence_scores,
+                     no_voxel=True), dists
 
     def get_mapped_seg(self, est_seg):
         point_dist, point_mapping = est_seg.get_mapping_to(self)
@@ -127,7 +128,8 @@ class Seg3D(Seg):
         confidence_scores = self.confidence_scores[point_mapping]
         instance_masks = self.instance_masks[:, point_mapping]
 
-        return Seg3D(points, classes, instance_masks, instance_classes, confidence_scores), point_dist
+        return Seg3D(points, classes, instance_masks, instance_classes, confidence_scores,
+                     no_voxel=True), point_dist
 
     def get_masked_seg(self, mask):
 
@@ -137,7 +139,8 @@ class Seg3D(Seg):
         confidence_scores = self.confidence_scores[mask]
         instance_masks = self.instance_masks[:, mask]
 
-        return Seg3D(points, classes, instance_masks, instance_classes, confidence_scores)
+        return Seg3D(points, classes, instance_masks, instance_classes, confidence_scores,
+                     no_voxel=True)
 
     def get_labelled_pcd(self, labels_to_vis=None, max_label=None, point_offset=[0,0,0]):
         from matplotlib import pyplot as plt

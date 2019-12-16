@@ -17,6 +17,7 @@ class Segmentation2dReproj(BCNF.ConfigParser):
         self.skip_existing = BCNF.OptionalMember(default_ret=False)
         self.save_path = BCNF.OptionalMember(default_ret="{dataset_id}/{scene_id}/{alg_name}/seg/seg2d")
         self.point_dist_thresh = BCNF.OptionalMember(default_ret=0.05)
+        self.use_reprojection = BCNF.OptionalMember(default_ret=True)
 
     def __call__(self, base_result_path, *args, **kwargs):
         from segtester.assessments.segmentation2d_reproj import Segmentation2DReprojAssessment

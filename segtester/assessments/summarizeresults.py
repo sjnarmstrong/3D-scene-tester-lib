@@ -28,7 +28,7 @@ class Seg2DResults:
         else:
             self.file_to_use = "res_seg_*.npz"
         self.all_results = pd.DataFrame(columns=[
-            'alg_name', 'scene', 'frame_nr', 'pt_acc_num', 'mca', 'fiou', 'miou'
+            'alg_name', 'scene', 'frame_nr', 'pt_acc_num', 'pt_acc_den', 'mca', 'fiou', 'miou'
         ])
 
     def add_result(self, base_path, alg_name, scene_name, classes):
@@ -39,7 +39,8 @@ class Seg2DResults:
                 frame_nr = int(path.split('_')[-1].split('.npz')[0])
                 self.all_results = self.all_results.append({
                     'alg_name': alg_name, 'scene': scene_name, 'frame_nr': frame_nr,
-                    'pt_acc_num': file["pt_acc_num"],  'mca': file["mca"], 'fiou': file["fiou"], 'miou': file["miou"]
+                    'pt_acc_num': float(file["pt_acc_num"]), 'pt_acc_den': float(file["pt_acc_den"]),
+                    'mca': float(file["mca"]), 'fiou': float(file["fiou"]), 'miou': float(file["miou"])
                 }, ignore_index=True)
                 if self.per_class_results is not None:
                     inst_acc_num = file["inst_acc_num"]
@@ -133,6 +134,8 @@ class ReconstructionSeg3dBasicResults:
                 "scene": np.repeat(np.tile(scene_ids, len(alg_names)), len(classes)),
                 "class": np.tile(classes, data_total),
                 "iou": np.repeat(np.nan, data_total*len(classes)),
+                "intersection": np.repeat(np.nan, data_total*len(classes)),
+                "union": np.repeat(np.nan, data_total*len(classes)),
                 "inst_acc_num": np.repeat(np.nan, data_total*len(classes)),
                 "inst_acc_den": np.repeat(np.nan, data_total*len(classes)),
             }
@@ -165,6 +168,8 @@ class ReconstructionSeg3dBasicResults:
             if self.per_class_results is not None:
                 pos_f = (self.per_class_results['alg_name'] == alg_name) & \
                         (self.per_class_results['scene'] == scene_name)
+                self.per_class_results.loc[pos_f, ["intersection"]] = file["intersection"]
+                self.per_class_results.loc[pos_f, ["union"]] = file["union"]
                 self.per_class_results.loc[pos_f, ["iou"]] = file["iou"]
                 self.per_class_results.loc[pos_f, ["inst_acc_num"]] = file["inst_acc_num"]
                 self.per_class_results.loc[pos_f, ["inst_acc_den"]] = file["inst_acc_den"]
@@ -229,10 +234,15 @@ class SummarizeRes:
             # Per class Results
             self.create_seg_per_class_tex(f"{save_folder}/seg2d_per_class_acc.tex",
                                           f"{save_folder}/seg2d_per_class_iou.tex",
+                                          f"{save_folder}/seg2d_per_class_iouv2.tex",
                                           seg2d_res_class.per_class_results)
             self.create_seg_per_class_tex(f"{save_folder}/seg3d_per_class_acc.tex",
                                           f"{save_folder}/seg3d_per_class_iou.tex",
+                                          f"{save_folder}/seg2d_per_class_iouv2.tex",
                                           seg3d_res_class.per_class_results)
+            seg2d_res_class.per_class_results.to_pickle(f"{save_folder}/__seg2d_res_class__per_class_results.pkl")
+            seg3d_res_class.per_class_results.to_pickle(f"{save_folder}/__seg3d_res_class__per_class_results.pkl")
+
             # All results
             self.create_seg_all_res_tex(f"{save_folder}/seg2d_all_c.tex", seg2d_res_class.all_results)
             self.create_seg_all_res_tex(f"{save_folder}/seg3d_all_c.tex", seg3d_res_class.all_results)
@@ -240,12 +250,20 @@ class SummarizeRes:
             self.create_seg_all_res_tex(f"{save_folder}/seg3d_all_i.tex", seg3d_res_inst.all_results)
             self.create_seg_all_res_tex(f"{save_folder}/seg2d_all_s.tex", seg2d_res_seg.all_results)
             self.create_seg_all_res_tex(f"{save_folder}/seg3d_all_s.tex", seg3d_res_seg.all_results)
+            seg2d_res_class.all_results.to_pickle(f"{save_folder}/__seg2d_res_class__all_results.pkl")
+            seg3d_res_class.all_results.to_pickle(f"{save_folder}/__seg3d_res_class__all_results.pkl")
+            seg2d_res_inst.all_results.to_pickle(f"{save_folder}/__seg2d_res_inst__all_results.pkl")
+            seg3d_res_inst.all_results.to_pickle(f"{save_folder}/__seg3d_res_inst__all_results.pkl")
+            seg2d_res_seg.all_results.to_pickle(f"{save_folder}/__seg2d_res_seg__all_results.pkl")
+            seg3d_res_seg.all_results.to_pickle(f"{save_folder}/__seg3d_res_seg__all_results.pkl")
 
             # Reconstruction
             self.create_reconstruction_tex(f"{save_folder}/rec_main.tex", reconst_res.all_results)
+            reconst_res.all_results.to_pickle(f"{save_folder}/__reconst_res__all_results.pkl")
 
             # ODOM
             self.create_odom_tex(f"{save_folder}/odom_main.tex", odo_res.all_results)
+            odo_res.all_results.to_pickle(f"{save_folder}/__odo_res__all_results.pkl")
 
         except Exception as e:
             logger.error(f"Could not save tex files")
@@ -271,7 +289,7 @@ class SummarizeRes:
             logger.exception(e)
 
     @classmethod
-    def create_seg_per_class_tex(cls, save_path_acc, save_path_iou, df):
+    def create_seg_per_class_tex(cls, save_path_acc, save_path_iou, save_path_iouv2, df):
         try:
             if len(df) == 0:
                 return
@@ -282,6 +300,17 @@ class SummarizeRes:
                 .replace('nan', '-').replace("class ", "Class ").replace("alg\_name", "Algorithm")
             with open(save_path_iou, "w") as fp:
                 fp.write(per_class_iou_tex)
+
+            t2 = df.pivot_table(values=["intersection", "union"], index=["alg_name"], columns=["class"], aggfunc=np.sum)
+            table = pd.DataFrame()
+            t3 = df.pivot_table(values=["intersection", "union"], index=["alg_name"], aggfunc=np.sum)
+            table['FIoU'] = t3["intersection"]/t3["union"]
+            table['MIoU'] = np.nanmean(t2["intersection"].replace(0, np.NaN)/t2["union"], axis=1)
+            table = table.rename(cls.name_map)
+            per_class_acc_tex = table.T.to_latex(na_rep='-', float_format=lambda x: '%.3f' % x) \
+                .replace('nan', '-').replace("class ", "Class ").replace("alg\\_name", "Algorithm")
+            with open(save_path_iouv2, "w") as fp:
+                fp.write(per_class_acc_tex)
 
             table = df.pivot_table(values=["inst_acc_num", "inst_acc_den"], index=["alg_name"], columns=["class"], aggfunc=np.sum)
             table = 100 * table["inst_acc_num"] / table["inst_acc_den"]

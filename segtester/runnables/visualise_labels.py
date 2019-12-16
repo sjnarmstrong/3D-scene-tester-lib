@@ -135,7 +135,7 @@ class VisualisePredictions:
                 seg_3d_est_labels = est_label_map[clses]
                 # label_names = dataset.label_names[converted_labels]
                 label_names = self.label_map.get_label_text(self.conf.label_map_dest_col, self.conf.label_map_name_col)
-                all_colors = self.cmap((np.arange(max_to_label) - 2) / (max_to_label - 2))
+                all_colors = self.cmap((np.arange(max_to_label+1) - 2) / (max_to_label - 1))
                 all_colors[0] = [0.35, 0.35, 0.35, 1]
                 all_colors[0] = [0.6, 0.6, 0.6, 1]
                 unique_labels = np.unique(seg_3d_est_labels)
